@@ -35,7 +35,8 @@ export const getExpenses = async (
   page = 1,
   size = 10,
   sortField = "date",
-  sortDirection = "DESC"
+  sortDirection = "DESC",
+  search = ""
 ) => {
   const response = await api.get("/expenses", {
     params: {
@@ -43,9 +44,9 @@ export const getExpenses = async (
       size,
       sortField,
       sortDirection,
+      ...(search.trim() && { search: search.trim() }),
     },
   })
-
   return response.data
 }
 

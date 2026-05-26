@@ -10,10 +10,35 @@ export interface CategoryForm {
   name: string
 }
 
-export const getCategories = () =>
-  api
-    .get<PaginatedResponse<Category>>("/categories")
-    .then((r) => r.data.content)
+export interface CategoryQueryParams {
+  page?: number
+  size?: number
+  sortField?: string
+  sortDirection?: "ASC" | "DESC"
+  search?: string
+}
+
+export const getCategories = (params: CategoryQueryParams = {}) => {
+  const {
+    page = 1,
+    size = 999,
+    sortField = "id",
+    sortDirection = "ASC",
+    search,
+  } = params
+
+  return api
+    .get<PaginatedResponse<Category>>("/categories", {
+      params: {
+        page,
+        size,
+        sortField,
+        sortDirection,
+        ...(search?.trim() && { search: search.trim() }),
+      },
+    })
+    .then((r) => r.data)
+}
 
 export const getCategoryById = (id: number) =>
   api.get<Category>(`/categories/${id}`).then((r) => r.data)

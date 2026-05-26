@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { login } from "@/api/auth"
+import { Button } from "@/components/ui/button.tsx"
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -72,13 +73,13 @@ export default function LoginPage() {
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
-        <button
+        <Button
           type="submit"
-          disabled={loading}
+          disabled={loading || !username.trim() || !password.trim()}
           className="w-full rounded-md bg-black px-4 py-2 text-white disabled:opacity-50"
         >
           {loading ? "Logging in..." : "Login"}
-        </button>
+        </Button>
       </form>
     </div>
   )

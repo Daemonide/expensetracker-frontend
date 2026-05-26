@@ -1,17 +1,16 @@
+"use client"
+
 import * as React from "react"
 
 import {
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   useReactTable,
   type ColumnDef,
-  type ColumnFiltersState,
   type PaginationState,
   type SortingState,
   type VisibilityState,
+  type Column,
 } from "@tanstack/react-table"
 
 import {
@@ -64,6 +63,7 @@ import {
   IconDotsVertical,
   IconLayoutColumns,
   IconPlus,
+  IconArrowsSort,
 } from "@tabler/icons-react"
 
 import { toast } from "sonner"
@@ -77,23 +77,35 @@ import {
   updateCategory,
 } from "@/api/categories"
 
+const SORT_FIELD_MAP: Record<string, string> = {
+  categoryId: "id",
+  name: "name",
+}
+
 export default function CategoriesPage() {
   const [categories, setCategories] = React.useState<Category[]>([])
+  const [totalPages, setTotalPages] = React.useState(1)
+  const [totalElements, setTotalElements] = React.useState(0)
 
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  )
+  const [search, setSearch] = React.useState("")
+  const [searchInput, setSearchInput] = React.useState("")
+
+  const [sorting, setSorting] = React.useState<SortingState>([
+    {
+      id: "categoryId",
+      desc: false,
+    },
+  ])
 
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
-
-  const [rowSelection, setRowSelection] = React.useState({})
 
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
   })
+
+  const [rowSelection, setRowSelection] = React.useState({})
 
   const [openSheet, setOpenSheet] = React.useState(false)
 
@@ -105,137 +117,79 @@ export default function CategoriesPage() {
     name: "",
   })
 
-  const fetchCategories = async () => {
+  const fetchCategories = React.useCallback(async () => {
     try {
-      const data = await getCategories()
-      setCategories(data)
+      const sort = sorting[0]
+
+      const sortField = SORT_FIELD_MAP[sort?.id ?? "categoryId"] ?? "id"
+
+      const sortDirection = sort?.desc ? "DESC" : "ASC"
+
+      const data = await getCategories({
+        page: pagination.pageIndex,
+        size: pagination.pageSize,
+        sortField,
+        sortDirection,
+        search,
+      })
+
+      setCategories(data.content ?? [])
+      setTotalPages(data.totalPages ?? 1)
+      setTotalElements(data.totalElements ?? 0)
     } catch (err) {
       console.error(err)
       toast.error("Failed to fetch categories")
     }
-  }
+  }, [pagination.pageIndex, pagination.pageSize, sorting, search])
 
   React.useEffect(() => {
-    fetchCategories()
-  }, [])
+    void fetchCategories()
+  }, [fetchCategories])
 
-  const openAddSheet = () => {
-    setEditingCategory(null)
+  const handleSortingChange = (columnId: string) => {
+    setSorting((prev) => {
+      const current = prev[0]
 
-    setForm({
-      name: "",
-    })
-
-    setOpenSheet(true)
-  }
-
-  const openEditSheet = (category: Category) => {
-    setEditingCategory(category)
-
-    setForm({
-      name: category.name,
-    })
-
-    setOpenSheet(true)
-  }
-
-  const handleSave = async () => {
-    try {
-      if (editingCategory) {
-        await updateCategory(editingCategory.categoryId, form)
-        toast.success("Category updated")
-      } else {
-        await createCategory(form)
-        toast.success("Category created")
+      if (current?.id === columnId) {
+        return [
+          {
+            id: columnId,
+            desc: !current.desc,
+          },
+        ]
       }
 
-      setOpenSheet(false)
-
-      fetchCategories()
-    } catch (err) {
-      console.error(err)
-      toast.error("Failed to save category")
-    }
+      return [
+        {
+          id: columnId,
+          desc: false,
+        },
+      ]
+    })
   }
 
-  const handleDelete = async (categoryId: number) => {
-    try {
-      await deleteCategory(categoryId)
-
-      toast.success("Category deleted")
-
-      fetchCategories()
-    } catch (err) {
-      console.error(err)
-      toast.error("Failed to delete category")
-    }
-  }
-
-  const handleDeleteSelected = async () => {
-    const selectedIDs = table
-      .getFilteredSelectedRowModel()
-      .rows.map((row) => row.original.categoryId)
-
-    try {
-      await Promise.all(selectedIDs.map((id) => deleteCategory(id)))
-
-      toast.success(`${selectedIDs.length} categories deleted`)
-
-      setRowSelection({})
-
-      fetchCategories()
-    } catch (err) {
-      console.error(err)
-      toast.error("Failed to delete selected categories")
-    }
-  }
+  const sortableHeader = (label: string, column: Column<Category>) => (
+    <Button
+      variant="ghost"
+      className="px-0 hover:bg-transparent"
+      onClick={() => handleSortingChange(column.id)}
+    >
+      {label}
+      <IconArrowsSort className="ml-2 size-4" />
+    </Button>
+  )
 
   const columns: ColumnDef<Category>[] = [
     {
-      id: "select",
-
-      header: ({ table }) => (
-        <div className="flex items-center justify-center">
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected() ||
-              (table.getIsSomePageRowsSelected() && "indeterminate")
-            }
-            onCheckedChange={(value) =>
-              table.toggleAllPageRowsSelected(!!value)
-            }
-          />
-        </div>
-      ),
-
-      cell: ({ row }) => (
-        <div className="flex items-center justify-center">
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-          />
-        </div>
-      ),
-
-      enableSorting: false,
-      enableHiding: false,
-    },
-
-    {
       accessorKey: "categoryId",
-
-      header: "ID",
+      header: ({ column }) => sortableHeader("ID", column),
     },
-
     {
       accessorKey: "name",
-
-      header: "Category Name",
+      header: ({ column }) => sortableHeader("Category Name", column),
     },
-
     {
       id: "actions",
-
       cell: ({ row }) => {
         const category = row.original
 
@@ -252,13 +206,21 @@ export default function CategoriesPage() {
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem onClick={() => openEditSheet(category)}>
+              <DropdownMenuItem
+                onClick={() => {
+                  setEditingCategory(category)
+                  setForm({
+                    name: category.name,
+                  })
+                  setOpenSheet(true)
+                }}
+              >
                 Edit
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 className="text-red-500"
-                onClick={() => handleDelete(category.categoryId)}
+                onClick={() => void deleteCategory(category.categoryId)}
               >
                 Delete
               </DropdownMenuItem>
@@ -272,97 +234,50 @@ export default function CategoriesPage() {
   const table = useReactTable({
     data: categories,
     columns,
-
     state: {
       sorting,
-      columnFilters,
+      pagination,
       columnVisibility,
       rowSelection,
-      pagination,
     },
-
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
+    manualSorting: true,
+    manualPagination: true,
+    pageCount: totalPages,
+    onPaginationChange: setPagination,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    onPaginationChange: setPagination,
-
-    enableRowSelection: true,
-
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   })
 
   return (
-    <div className="w-full space-y-4">
-      <div className="flex items-center justify-between">
-        <Input
-          placeholder="Search categories..."
-          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-          onChange={(e) =>
-            table.getColumn("name")?.setFilterValue(e.target.value)
+    <div className="space-y-4">
+      <Input
+        placeholder="Search..."
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            setSearch(searchInput)
+
+            setPagination((p) => ({
+              ...p,
+              pageIndex: 0,
+            }))
           }
-          className="max-w-sm"
-        />
-
-        <div className="flex items-center gap-2">
-          {table.getFilteredSelectedRowModel().rows.length > 0 && (
-            <Button variant="destructive" onClick={handleDeleteSelected}>
-              Delete Selected
-            </Button>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <IconLayoutColumns className="mr-2 size-4" />
-                Columns
-                <IconChevronDown className="ml-2 size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end">
-              <DropdownMenuGroup>
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(value) =>
-                        column.toggleVisibility(value)
-                      }
-                    >
-                      {column.id}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button onClick={openAddSheet}>
-            <IconPlus className="mr-2 size-4" />
-            Add Category
-          </Button>
-        </div>
-      </div>
+        }}
+      />
 
       <div className="overflow-hidden rounded-lg border">
         <Table>
-          <TableHeader className="sticky top-0 bg-muted">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
+          <TableHeader>
+            {table.getHeaderGroups().map((group) => (
+              <TableRow key={group.id}>
+                {group.headers.map((header) => (
                   <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -370,140 +285,95 @@ export default function CategoriesPage() {
           </TableHeader>
 
           <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No categories found.
-                </TableCell>
+            {table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
               </TableRow>
-            )}
+            ))}
           </TableBody>
         </Table>
       </div>
 
-      <div className="flex items-center justify-between px-2">
+      <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+          Showing{" "}
+          {totalElements === 0
+            ? 0
+            : pagination.pageIndex * pagination.pageSize + 1}{" "}
+          to{" "}
+          {Math.min(
+            (pagination.pageIndex + 1) * pagination.pageSize,
+            totalElements
+          )}{" "}
+          of {totalElements} entries
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <Label>Rows per page</Label>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            disabled={pagination.pageIndex === 0}
+            onClick={() =>
+              setPagination((p) => ({
+                ...p,
+                pageIndex: 0,
+              }))
+            }
+          >
+            <IconChevronsLeft className="size-4" />
+          </Button>
 
-            <Select
-              value={`${table.getState().pagination.pageSize}`}
-              onValueChange={(value) => table.setPageSize(Number(value))}
-            >
-              <SelectTrigger className="w-20">
-                <SelectValue />
-              </SelectTrigger>
-
-              <SelectContent side="top">
-                {[5, 10, 20, 30, 40, 50].map((size) => (
-                  <SelectItem key={size} value={`${size}`}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            disabled={pagination.pageIndex === 0}
+            onClick={() =>
+              setPagination((p) => ({
+                ...p,
+                pageIndex: Math.max(0, p.pageIndex - 1),
+              }))
+            }
+          >
+            <IconChevronLeft className="size-4" />
+          </Button>
 
           <div className="text-sm font-medium">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
+            Page {pagination.pageIndex + 1} of {totalPages}
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <IconChevronsLeft className="size-4" />
-            </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            disabled={pagination.pageIndex + 1 >= totalPages}
+            onClick={() =>
+              setPagination((p) => ({
+                ...p,
+                pageIndex: p.pageIndex + 1,
+              }))
+            }
+          >
+            <IconChevronRight className="size-4" />
+          </Button>
 
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <IconChevronLeft className="size-4" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <IconChevronRight className="size-4" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
-            >
-              <IconChevronsRight className="size-4" />
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            disabled={pagination.pageIndex + 1 >= totalPages}
+            onClick={() =>
+              setPagination((p) => ({
+                ...p,
+                pageIndex: totalPages - 1,
+              }))
+            }
+          >
+            <IconChevronsRight className="size-4" />
+          </Button>
         </div>
       </div>
-
-      <Sheet open={openSheet} onOpenChange={setOpenSheet}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>
-              {editingCategory ? "Edit Category" : "Add Category"}
-            </SheetTitle>
-
-            <SheetDescription>Fill category details below.</SheetDescription>
-          </SheetHeader>
-
-          <div className="mt-6 space-y-4">
-            <div className="space-y-2">
-              <Label>Name</Label>
-
-              <Input
-                value={form.name}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    name: e.target.value,
-                  })
-                }
-              />
-            </div>
-
-            <Button className="w-full" onClick={handleSave}>
-              {editingCategory ? "Update Category" : "Create Category"}
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
     </div>
   )
 }

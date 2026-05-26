@@ -4,6 +4,7 @@ import Layout from "./layout"
 import ExpensesPage from "@/pages/ExpensesPage"
 import LoginPage from "@/pages/LoginPage.tsx"
 import CategoriesPage from "@/pages/CategoriesPage.tsx"
+import PrivateRoute from "@/components/PrivateRoute"
 
 function App() {
   return (
@@ -11,8 +12,22 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
 
       <Route element={<Layout />}>
-        <Route path="/expenses" element={<ExpensesPage />} />
-        <Route path="/categories" element={<CategoriesPage />} />
+        <Route
+          path="/expenses"
+          element={
+            <PrivateRoute>
+              <ExpensesPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/categories"
+          element={
+            <PrivateRoute>
+              <CategoriesPage />
+            </PrivateRoute>
+          }
+        />
       </Route>
     </Routes>
   )

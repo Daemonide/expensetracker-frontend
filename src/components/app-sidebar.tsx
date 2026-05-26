@@ -17,7 +17,7 @@ import {
   ReceiptIndianRupee,
   Wallet,
 } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,8 +30,13 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx"
 
 export function AppSidebar() {
+  const navigate = useNavigate()
   const user = "Daemonide"
   const email = "daemonide.sys@gmail.com"
+  const handleLogout = () => {
+    localStorage.removeItem("token")
+    navigate("/login")
+  }
   return (
     <Sidebar>
       <SidebarHeader>
@@ -125,7 +130,7 @@ export function AppSidebar() {
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
                   <LogOut />
                   Log out
                 </DropdownMenuItem>

@@ -6,7 +6,6 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getSortedRowModel,
   useReactTable,
   type ColumnDef,
   type ColumnFiltersState,
@@ -89,8 +88,6 @@ import {
 
 import { type Category, getCategories } from "@/api/categories"
 
-// Fix: moved sortFieldMap outside the component so it's a stable reference
-// and no longer needs to be a useCallback dependency
 const SORT_FIELD_MAP: Record<string, string> = {
   title: "title",
   amount: "amount",
@@ -105,6 +102,9 @@ export default function ExpensesPage() {
 
   const [totalPages, setTotalPages] = React.useState(1)
   const [totalElements, setTotalElements] = React.useState(0)
+
+  const [search, setSearch] = React.useState("")
+  const [searchInput, setSearchInput] = React.useState("")
 
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "date", desc: true },
@@ -135,18 +135,17 @@ export default function ExpensesPage() {
     status: "PENDING",
   })
 
-  // Fix: sortFieldMap is now a module-level constant, so the exhaustive-deps
-  // warning is gone — no missing dependency
   const fetchExpenses = React.useCallback(async () => {
     try {
       const sortField = SORT_FIELD_MAP[sorting[0]?.id ?? "date"] ?? "date"
       const sortDirection = sorting[0]?.desc ? "DESC" : "ASC"
 
       const response = await getExpenses(
-        pagination.pageIndex + 1,
+        pagination.pageIndex,
         pagination.pageSize,
         sortField,
-        sortDirection
+        sortDirection,
+        search
       )
 
       setExpenses(response.content ?? [])
@@ -156,24 +155,26 @@ export default function ExpensesPage() {
       console.error(err)
       toast.error("Failed to fetch expenses")
     }
-  }, [pagination.pageIndex, pagination.pageSize, sorting])
+  }, [pagination.pageIndex, pagination.pageSize, sorting, search])
 
-  // Fix: void the returned promise so the "promise ignored" warning is gone
   React.useEffect(() => {
     void fetchExpenses()
   }, [fetchExpenses])
 
   React.useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }))
+  }, [search])
+
+  React.useEffect(() => {
     const fetchCategories = async () => {
       try {
         const data = await getCategories()
-        setCategories(data ?? [])
+        setCategories(data.content ?? [])
       } catch (err) {
         console.error(err)
         toast.error("Failed to fetch categories")
       }
     }
-    // Fix: void the returned promise
     void fetchCategories()
   }, [])
 
@@ -238,7 +239,6 @@ export default function ExpensesPage() {
         toast.success("Expense created")
       }
       setOpenSheet(false)
-      // Fix: await the async call instead of ignoring the returned promise
       await fetchExpenses()
     } catch (err) {
       console.error(err)
@@ -255,7 +255,6 @@ export default function ExpensesPage() {
         return next
       })
       toast.success("Expense deleted")
-      // Fix: await
       await fetchExpenses()
     } catch (err) {
       console.error(err)
@@ -269,7 +268,6 @@ export default function ExpensesPage() {
       await Promise.all(ids.map((id) => deleteExpense(id)))
       toast.success(`${ids.length} expenses deleted`)
       setSelectedIds(new Set())
-      // Fix: await
       await fetchExpenses()
     } catch (err) {
       console.error(err)
@@ -277,12 +275,38 @@ export default function ExpensesPage() {
     }
   }
 
-  // Fix: replace `any` with the proper tanstack Column generic type
+  const handleSortingChange = (columnId: string) => {
+    setSorting((prev) => {
+      const current = prev[0]
+
+      if (current?.id === columnId) {
+        return [
+          {
+            id: columnId,
+            desc: !current.desc,
+          },
+        ]
+      }
+
+      return [
+        {
+          id: columnId,
+          desc: false,
+        },
+      ]
+    })
+
+    setPagination((p) => ({
+      ...p,
+      pageIndex: 0,
+    }))
+  }
+
   const sortableHeader = (label: string, column: Column<Expense>) => (
     <Button
       variant="ghost"
-      onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       className="px-0 hover:bg-transparent"
+      onClick={() => handleSortingChange(column.id)}
     >
       {label}
       <IconArrowsSort className="ml-2 size-4" />
@@ -293,7 +317,6 @@ export default function ExpensesPage() {
     {
       id: "select",
       header: () => (
-        // Fix: removed unused `table` parameter from header render prop
         <Checkbox
           checked={
             expenses.length > 0 &&
@@ -305,9 +328,6 @@ export default function ExpensesPage() {
             setSelectedIds((prev) => {
               const next = new Set(prev)
               expenses.forEach((e) => {
-                // Fix: simplified boolean — `!!value` is the same as `value === true`
-                // but the Checkbox onCheckedChange gives boolean | "indeterminate",
-                // so we check truthiness explicitly
                 if (value === true) next.add(e.expenseID)
                 else next.delete(e.expenseID)
               })
@@ -404,8 +424,6 @@ export default function ExpensesPage() {
     },
   ]
 
-  // Fix: `table` is used in the JSX below — was only "unused" because the
-  // header render prop shadowed it with its own `table` param (now removed above)
   const table = useReactTable({
     data: expenses,
     columns,
@@ -419,7 +437,6 @@ export default function ExpensesPage() {
     pageCount: totalPages,
     manualPagination: true,
     manualSorting: true,
-    onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: handleRowSelectionChange,
@@ -427,7 +444,6 @@ export default function ExpensesPage() {
     enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   })
 
   return (
@@ -435,12 +451,16 @@ export default function ExpensesPage() {
       {/* TOP BAR */}
       <div className="flex items-center gap-2">
         <Input
-          placeholder="Search title..."
+          placeholder="Search title... (press Enter)"
           className="max-w-sm"
-          value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
-          onChange={(e) =>
-            table.getColumn("title")?.setFilterValue(e.target.value)
-          }
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              setSearch(searchInput)
+              setPagination((p) => ({ ...p, pageIndex: 0 }))
+            }
+          }}
         />
 
         {selectedIds.size > 0 && (
@@ -537,7 +557,11 @@ export default function ExpensesPage() {
       {/* PAGINATION */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {pagination.pageIndex * pagination.pageSize + 1} to{" "}
+          Showing{" "}
+          {totalElements === 0
+            ? 0
+            : pagination.pageIndex * pagination.pageSize + 1}{" "}
+          to{" "}
           {Math.min(
             (pagination.pageIndex + 1) * pagination.pageSize,
             totalElements
@@ -687,7 +711,16 @@ export default function ExpensesPage() {
                 <option value="CANCELLED">Cancelled</option>
               </select>
             </div>
-            <Button className="w-full" onClick={() => void handleSave()}>
+            <Button
+              className="w-full"
+              onClick={() => void handleSave()}
+              disabled={
+                !form.title.trim() ||
+                !form.amount ||
+                !form.date ||
+                !form.categoryId
+              }
+            >
               {editingExpense ? "Update Expense" : "Create Expense"}
             </Button>
           </div>

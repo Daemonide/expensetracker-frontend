@@ -20,8 +20,34 @@ export interface ExpenseForm {
   status: ExpenseStatus
 }
 
-export const getExpenses = () =>
-  api.get<Expense[]>("/expenses").then((r) => r.data)
+export interface ExpenseResponse {
+  content: Expense[]
+  totalPages: number
+  totalElements: number
+  size: number
+  page: number
+  empty: boolean
+  sortField: string
+  sortDirection: string
+}
+
+export const getExpenses = async (
+  page = 1,
+  size = 10,
+  sortField = "date",
+  sortDirection = "DESC"
+) => {
+  const response = await api.get("/expenses", {
+    params: {
+      page,
+      size,
+      sortField,
+      sortDirection,
+    },
+  })
+
+  return response.data
+}
 
 export const getExpenseById = (id: number) =>
   api.get<Expense>(`/expenses/${id}`).then((r) => r.data)

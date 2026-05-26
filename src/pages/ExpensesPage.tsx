@@ -1,5 +1,3 @@
-// ExpensesPage.tsx
-
 "use client"
 
 import * as React from "react"
@@ -8,13 +6,16 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
   type ColumnFiltersState,
+  type Column,
+  type PaginationState,
   type SortingState,
   type VisibilityState,
+  type Updater,
+  type RowSelectionState,
 } from "@tanstack/react-table"
 
 import {
@@ -24,8 +25,17 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 
 import {
   Table,
@@ -37,26 +47,33 @@ import {
 } from "@/components/ui/table"
 
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-import { ArrowUpDown, ChevronDown, MoreHorizontal, Plus } from "lucide-react"
-
 import {
+  IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
+  IconChevronsLeft,
+  IconChevronsRight,
   IconCircleCheckFilled,
-  IconClock,
+  IconDotsVertical,
+  IconLayoutColumns,
   IconLoader,
+  IconPlus,
   IconX,
+  IconClock,
+  IconArrowsSort,
 } from "@tabler/icons-react"
 
 import { toast } from "sonner"
@@ -64,30 +81,48 @@ import { toast } from "sonner"
 import {
   type Expense,
   type ExpenseForm,
-  getExpenses,
   createExpense,
-  updateExpense,
   deleteExpense,
+  getExpenses,
+  updateExpense,
 } from "@/api/expenses"
 
 import { type Category, getCategories } from "@/api/categories"
+
+// Fix: moved sortFieldMap outside the component so it's a stable reference
+// and no longer needs to be a useCallback dependency
+const SORT_FIELD_MAP: Record<string, string> = {
+  title: "title",
+  amount: "amount",
+  status: "status",
+  date: "date",
+  categoryName: "category.name",
+}
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = React.useState<Expense[]>([])
   const [categories, setCategories] = React.useState<Category[]>([])
 
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [totalPages, setTotalPages] = React.useState(1)
+  const [totalElements, setTotalElements] = React.useState(0)
+
+  const [sorting, setSorting] = React.useState<SortingState>([
+    { id: "date", desc: true },
+  ])
+
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
-
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
+  const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set())
 
-  const [rowSelection, setRowSelection] = React.useState({})
+  const [pagination, setPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  })
 
   const [openSheet, setOpenSheet] = React.useState(false)
-
   const [editingExpense, setEditingExpense] = React.useState<Expense | null>(
     null
   )
@@ -100,42 +135,77 @@ export default function ExpensesPage() {
     status: "PENDING",
   })
 
-  const fetchExpenses = async () => {
+  // Fix: sortFieldMap is now a module-level constant, so the exhaustive-deps
+  // warning is gone — no missing dependency
+  const fetchExpenses = React.useCallback(async () => {
     try {
-      setExpenses(await getExpenses())
+      const sortField = SORT_FIELD_MAP[sorting[0]?.id ?? "date"] ?? "date"
+      const sortDirection = sorting[0]?.desc ? "DESC" : "ASC"
+
+      const response = await getExpenses(
+        pagination.pageIndex + 1,
+        pagination.pageSize,
+        sortField,
+        sortDirection
+      )
+
+      setExpenses(response.content ?? [])
+      setTotalPages(response.totalPages ?? 1)
+      setTotalElements(response.totalElements ?? 0)
     } catch (err) {
       console.error(err)
       toast.error("Failed to fetch expenses")
     }
-  }
+  }, [pagination.pageIndex, pagination.pageSize, sorting])
 
-  const fetchCategories = async () => {
-    try {
-      setCategories(await getCategories())
-    } catch (err) {
-      console.error(err)
-      toast.error("Failed to fetch categories")
-    }
-  }
+  // Fix: void the returned promise so the "promise ignored" warning is gone
+  React.useEffect(() => {
+    void fetchExpenses()
+  }, [fetchExpenses])
 
   React.useEffect(() => {
-    fetchExpenses()
-    fetchCategories()
+    const fetchCategories = async () => {
+      try {
+        const data = await getCategories()
+        setCategories(data ?? [])
+      } catch (err) {
+        console.error(err)
+        toast.error("Failed to fetch categories")
+      }
+    }
+    // Fix: void the returned promise
+    void fetchCategories()
   }, [])
 
-  React.useEffect(() => {
-    if (categories.length > 0) {
-      setForm((f) => ({
-        ...f,
-        categoryId:
-          f.categoryId === 0 ? categories[0].categoryId : f.categoryId,
-      }))
-    }
-  }, [categories])
+  const rowSelection = React.useMemo<RowSelectionState>(() => {
+    const selection: RowSelectionState = {}
+    expenses.forEach((expense, index) => {
+      if (selectedIds.has(expense.expenseID)) {
+        selection[String(index)] = true
+      }
+    })
+    return selection
+  }, [expenses, selectedIds])
+
+  const handleRowSelectionChange = (updater: Updater<RowSelectionState>) => {
+    const newSelection =
+      typeof updater === "function" ? updater(rowSelection) : updater
+
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      expenses.forEach((expense, index) => {
+        if (newSelection[String(index)]) {
+          next.add(expense.expenseID)
+        } else {
+          next.delete(expense.expenseID)
+        }
+      })
+      return next
+    })
+  }
 
   const openAddSheet = () => {
     setEditingExpense(null)
-
     setForm({
       title: "",
       amount: 0,
@@ -143,13 +213,11 @@ export default function ExpensesPage() {
       categoryId: categories[0]?.categoryId ?? 0,
       status: "PENDING",
     })
-
     setOpenSheet(true)
   }
 
   const openEditSheet = (expense: Expense) => {
     setEditingExpense(expense)
-
     setForm({
       title: expense.title,
       amount: expense.amount,
@@ -157,27 +225,7 @@ export default function ExpensesPage() {
       categoryId: expense.categoryId,
       status: expense.status,
     })
-
     setOpenSheet(true)
-  }
-
-  const handleDeleteSelected = async () => {
-    const selectedIDs = table
-      .getFilteredSelectedRowModel()
-      .rows.map((row) => row.original.expenseID)
-
-    try {
-      await Promise.all(selectedIDs.map((id) => deleteExpense(id)))
-
-      toast.success(`${selectedIDs.length} expense(s) deleted`)
-
-      setRowSelection({})
-
-      fetchExpenses()
-    } catch (err) {
-      console.error(err)
-      toast.error("Failed to delete selected expenses")
-    }
   }
 
   const handleSave = async () => {
@@ -187,12 +235,11 @@ export default function ExpensesPage() {
         toast.success("Expense updated")
       } else {
         await createExpense(form)
-        toast.success("Expense added")
+        toast.success("Expense created")
       }
-
       setOpenSheet(false)
-
-      fetchExpenses()
+      // Fix: await the async call instead of ignoring the returned promise
+      await fetchExpenses()
     } catch (err) {
       console.error(err)
       toast.error("Failed to save expense")
@@ -202,90 +249,99 @@ export default function ExpensesPage() {
   const handleDelete = async (expenseID: number) => {
     try {
       await deleteExpense(expenseID)
-
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(expenseID)
+        return next
+      })
       toast.success("Expense deleted")
-
-      fetchExpenses()
+      // Fix: await
+      await fetchExpenses()
     } catch (err) {
       console.error(err)
       toast.error("Failed to delete expense")
     }
   }
 
+  const handleDeleteSelected = async () => {
+    const ids = Array.from(selectedIds)
+    try {
+      await Promise.all(ids.map((id) => deleteExpense(id)))
+      toast.success(`${ids.length} expenses deleted`)
+      setSelectedIds(new Set())
+      // Fix: await
+      await fetchExpenses()
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to delete selected expenses")
+    }
+  }
+
+  // Fix: replace `any` with the proper tanstack Column generic type
+  const sortableHeader = (label: string, column: Column<Expense>) => (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      className="px-0 hover:bg-transparent"
+    >
+      {label}
+      <IconArrowsSort className="ml-2 size-4" />
+    </Button>
+  )
+
   const columns: ColumnDef<Expense>[] = [
     {
       id: "select",
-      size: 40,
+      header: () => (
+        // Fix: removed unused `table` parameter from header render prop
+        <Checkbox
+          checked={
+            expenses.length > 0 &&
+            (expenses.every((e) => selectedIds.has(e.expenseID)) ||
+              (expenses.some((e) => selectedIds.has(e.expenseID)) &&
+                "indeterminate"))
+          }
+          onCheckedChange={(value) => {
+            setSelectedIds((prev) => {
+              const next = new Set(prev)
+              expenses.forEach((e) => {
+                // Fix: simplified boolean — `!!value` is the same as `value === true`
+                // but the Checkbox onCheckedChange gives boolean | "indeterminate",
+                // so we check truthiness explicitly
+                if (value === true) next.add(e.expenseID)
+                else next.delete(e.expenseID)
+              })
+              return next
+            })
+          }}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+        />
+      ),
       enableSorting: false,
       enableHiding: false,
-
-      header: ({ table }) => (
-        <div className="flex items-center justify-center">
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected() ||
-              (table.getIsSomePageRowsSelected() && "indeterminate")
-            }
-            onCheckedChange={(value) =>
-              table.toggleAllPageRowsSelected(!!value)
-            }
-          />
-        </div>
-      ),
-
-      cell: ({ row }) => (
-        <div className="flex items-center justify-center">
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-          />
-        </div>
-      ),
     },
-
     {
       accessorKey: "title",
-
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Title
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => sortableHeader("Title", column),
     },
-
     {
       accessorKey: "categoryName",
-
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Category
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => sortableHeader("Category", column),
     },
-
     {
       accessorKey: "status",
-
-      header: "Status",
-
+      header: ({ column }) => sortableHeader("Status", column),
       cell: ({ row }) => {
         const status = row.original.status
-
         return (
-          <Badge
-            variant="outline"
-            className="gap-1 px-2 py-1 text-muted-foreground"
-          >
+          <Badge variant="outline" className="gap-1">
             {status === "DONE" ? (
-              <IconCircleCheckFilled className="size-4 fill-green-500 text-green-500" />
+              <IconCircleCheckFilled className="size-4 text-green-500" />
             ) : status === "IN_PROGRESS" ? (
               <IconLoader className="size-4 animate-spin text-blue-500" />
             ) : status === "PENDING" ? (
@@ -293,166 +349,134 @@ export default function ExpensesPage() {
             ) : (
               <IconX className="size-4 text-red-500" />
             )}
-
-            {status === "DONE"
-              ? "Done"
-              : status === "IN_PROGRESS"
-                ? "In Progress"
-                : status === "PENDING"
-                  ? "Pending"
-                  : "Cancelled"}
+            {status}
           </Badge>
         )
       },
     },
-
     {
       accessorKey: "amount",
-
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Amount
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-
+      header: ({ column }) => sortableHeader("Amount", column),
       cell: ({ row }) => {
-        const amount = parseFloat(row.getValue("amount"))
-
-        const formatted = new Intl.NumberFormat("en-IN", {
-          style: "currency",
-          currency: "INR",
-        }).format(amount)
-
-        return <div className="font-medium">{formatted}</div>
+        const amount = Number(row.getValue("amount"))
+        return (
+          <div>
+            {new Intl.NumberFormat("en-IN", {
+              style: "currency",
+              currency: "INR",
+            }).format(amount)}
+          </div>
+        )
       },
     },
-
     {
       accessorKey: "date",
-
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Date
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => sortableHeader("Date", column),
     },
-
     {
       id: "actions",
-      size: 60,
       enableSorting: false,
-      enableHiding: false,
-
       cell: ({ row }) => {
         const expense = row.original
-
         return (
-          <div className="flex justify-end">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-
-                  <DropdownMenuItem onClick={() => openEditSheet(expense)}>
-                    Edit Expense
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    className="text-red-500"
-                    onClick={() => handleDelete(expense.expenseID)}
-                  >
-                    Delete Expense
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <IconDotsVertical className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => openEditSheet(expense)}>
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-red-500"
+                onClick={() => void handleDelete(expense.expenseID)}
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )
       },
     },
   ]
 
+  // Fix: `table` is used in the JSX below — was only "unused" because the
+  // header render prop shadowed it with its own `table` param (now removed above)
   const table = useReactTable({
     data: expenses,
     columns,
-
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       rowSelection,
+      pagination,
     },
+    pageCount: totalPages,
+    manualPagination: true,
+    manualSorting: true,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: handleRowSelectionChange,
+    onPaginationChange: setPagination,
+    enableRowSelection: true,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   })
 
   return (
-    <div className="w-full">
-      <div className="flex items-center gap-2 py-4">
+    <div className="w-full space-y-4">
+      {/* TOP BAR */}
+      <div className="flex items-center gap-2">
         <Input
-          placeholder="Filter titles..."
+          placeholder="Search title..."
+          className="max-w-sm"
           value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
           onChange={(e) =>
             table.getColumn("title")?.setFilterValue(e.target.value)
           }
-          className="max-w-sm"
         />
 
-        {table.getFilteredSelectedRowModel().rows.length > 0 && (
-          <Button variant="destructive" onClick={handleDeleteSelected}>
-            Delete Selected ({table.getFilteredSelectedRowModel().rows.length})
+        {selectedIds.size > 0 && (
+          <Button
+            variant="destructive"
+            onClick={() => void handleDeleteSelected()}
+          >
+            Delete Selected ({selectedIds.size})
           </Button>
         )}
 
         <Button onClick={openAddSheet}>
-          <Plus className="mr-2 h-4 w-4" />
+          <IconPlus className="mr-2 size-4" />
           Add Expense
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto">
+              <IconLayoutColumns className="mr-2 size-4" />
               Columns
-              <ChevronDown className="ml-2 h-4 w-4" />
+              <IconChevronDown className="ml-2 size-4" />
             </Button>
           </DropdownMenuTrigger>
-
-          <DropdownMenuContent align="end" className="w-36">
+          <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuGroup>
               {table
                 .getAllColumns()
-                .filter((col) => col.getCanHide())
-                .map((col) => (
+                .filter((column) => column.getCanHide())
+                .map((column) => (
                   <DropdownMenuCheckboxItem
-                    key={col.id}
-                    checked={col.getIsVisible()}
-                    onCheckedChange={(value) =>
-                      col.toggleVisibility(Boolean(value))
-                    }
+                    key={column.id}
+                    checked={column.getIsVisible()}
+                    onCheckedChange={(value) => column.toggleVisibility(value)}
                   >
-                    {col.id}
+                    {column.id}
                   </DropdownMenuCheckboxItem>
                 ))}
             </DropdownMenuGroup>
@@ -460,24 +484,25 @@ export default function ExpensesPage() {
         </DropdownMenu>
       </div>
 
-      <div className="rounded-md border">
+      {/* TABLE */}
+      <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id}>
-                    {!header.isPlaceholder &&
-                      flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
             ))}
           </TableHeader>
-
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
@@ -509,117 +534,143 @@ export default function ExpensesPage() {
         </Table>
       </div>
 
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+      {/* PAGINATION */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          Showing {pagination.pageIndex * pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (pagination.pageIndex + 1) * pagination.pageSize,
+            totalElements
+          )}{" "}
+          of {totalElements} entries
+          {selectedIds.size > 0 && (
+            <span className="ml-2 font-medium text-foreground">
+              · {selectedIds.size} selected
+            </span>
+          )}
         </div>
 
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm">Rows per page</Label>
+            <Select
+              value={`${pagination.pageSize}`}
+              onValueChange={(value) => table.setPageSize(Number(value))}
+            >
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 30, 40, 50].map((size) => (
+                  <SelectItem key={size} value={`${size}`}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
+          <div className="text-sm font-medium">
+            Page {pagination.pageIndex + 1} of {totalPages}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setPagination((p) => ({ ...p, pageIndex: 0 }))}
+              disabled={pagination.pageIndex === 0}
+            >
+              <IconChevronsLeft className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() =>
+                setPagination((p) => ({ ...p, pageIndex: p.pageIndex - 1 }))
+              }
+              disabled={pagination.pageIndex === 0}
+            >
+              <IconChevronLeft className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() =>
+                setPagination((p) => ({ ...p, pageIndex: p.pageIndex + 1 }))
+              }
+              disabled={pagination.pageIndex + 1 >= totalPages}
+            >
+              <IconChevronRight className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() =>
+                setPagination((p) => ({ ...p, pageIndex: totalPages - 1 }))
+              }
+              disabled={pagination.pageIndex + 1 >= totalPages}
+            >
+              <IconChevronsRight className="size-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
+      {/* SHEET */}
       <Sheet open={openSheet} onOpenChange={setOpenSheet}>
         <SheetContent>
           <SheetHeader>
             <SheetTitle>
               {editingExpense ? "Edit Expense" : "Add Expense"}
             </SheetTitle>
-
-            <SheetDescription>
-              Fill in the expense details below.
-            </SheetDescription>
+            <SheetDescription>Fill expense details below.</SheetDescription>
           </SheetHeader>
 
-          <div className="m-3 space-y-4">
+          <div className="mt-6 space-y-4">
             <div className="space-y-2">
               <Label>Title</Label>
-
               <Input
                 value={form.title}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    title: e.target.value,
-                  })
-                }
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
               />
             </div>
-
             <div className="space-y-2">
               <Label>Amount</Label>
-
               <Input
                 type="number"
                 value={form.amount}
                 onChange={(e) =>
-                  setForm({
-                    ...form,
-                    amount: Number(e.target.value),
-                  })
+                  setForm({ ...form, amount: Number(e.target.value) })
                 }
               />
             </div>
-
             <div className="space-y-2">
               <Label>Date</Label>
-
               <Input
                 type="date"
                 value={form.date}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    date: e.target.value,
-                  })
-                }
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
               />
             </div>
-
             <div className="space-y-2">
               <Label>Category</Label>
-
               <select
-                value={String(form.categoryId)}
+                value={form.categoryId}
                 onChange={(e) =>
-                  setForm({
-                    ...form,
-                    categoryId: Number(e.target.value),
-                  })
+                  setForm({ ...form, categoryId: Number(e.target.value) })
                 }
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border border-input bg-background px-3 py-2"
               >
                 {categories.map((category) => (
-                  <option
-                    key={category.categoryId}
-                    value={String(category.categoryId)}
-                  >
+                  <option key={category.categoryId} value={category.categoryId}>
                     {category.name}
                   </option>
                 ))}
               </select>
             </div>
-
             <div className="space-y-2">
               <Label>Status</Label>
-
               <select
                 value={form.status}
                 onChange={(e) =>
@@ -628,7 +679,7 @@ export default function ExpensesPage() {
                     status: e.target.value as ExpenseForm["status"],
                   })
                 }
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border border-input bg-background px-3 py-2"
               >
                 <option value="PENDING">Pending</option>
                 <option value="IN_PROGRESS">In Progress</option>
@@ -636,9 +687,8 @@ export default function ExpensesPage() {
                 <option value="CANCELLED">Cancelled</option>
               </select>
             </div>
-
-            <Button className="w-full" onClick={handleSave}>
-              {editingExpense ? "Update Expense" : "Add Expense"}
+            <Button className="w-full" onClick={() => void handleSave()}>
+              {editingExpense ? "Update Expense" : "Create Expense"}
             </Button>
           </div>
         </SheetContent>

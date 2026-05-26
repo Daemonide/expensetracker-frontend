@@ -1,4 +1,5 @@
 import api from "./axios"
+import type { PaginatedResponse } from "@/types/pagination"
 
 export interface Category {
   categoryId: number
@@ -10,7 +11,9 @@ export interface CategoryForm {
 }
 
 export const getCategories = () =>
-  api.get<Category[]>("/categories").then((r) => r.data)
+  api
+    .get<PaginatedResponse<Category>>("/categories")
+    .then((r) => r.data.content)
 
 export const getCategoryById = (id: number) =>
   api.get<Category>(`/categories/${id}`).then((r) => r.data)

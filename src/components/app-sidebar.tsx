@@ -14,7 +14,8 @@ import {
   BookCopy,
   ChevronsUpDown,
   LogOut,
-  PiggyBank,
+  ReceiptIndianRupee,
+  Wallet,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import {
@@ -36,7 +37,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenuButton className="mt-2">
           <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <BookCopy className="size-4" />
+            <Wallet className="size-4" />
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">Expense Tracker</span>
@@ -49,7 +50,7 @@ export function AppSidebar() {
         <SidebarMenuItem>
           <SidebarMenuButton asChild>
             <Link to="/expenses">
-              <PiggyBank />
+              <ReceiptIndianRupee />
               <span>Expenses</span>
             </Link>
           </SidebarMenuButton>

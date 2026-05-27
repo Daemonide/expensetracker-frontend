@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 
 import {
@@ -15,9 +13,7 @@ import {
 
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -41,27 +37,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-
-import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import {
-  IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
   IconChevronsLeft,
   IconChevronsRight,
   IconDotsVertical,
-  IconLayoutColumns,
   IconPlus,
   IconArrowsSort,
 } from "@tabler/icons-react"
@@ -76,6 +61,13 @@ import {
   getCategories,
   updateCategory,
 } from "@/api/categories"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select.tsx"
 
 const SORT_FIELD_MAP: Record<string, string> = {
   categoryId: "id",
@@ -91,10 +83,7 @@ export default function CategoriesPage() {
   const [searchInput, setSearchInput] = React.useState("")
 
   const [sorting, setSorting] = React.useState<SortingState>([
-    {
-      id: "categoryId",
-      desc: false,
-    },
+    { id: "categoryId", desc: false },
   ])
 
   const [columnVisibility, setColumnVisibility] =
@@ -108,21 +97,15 @@ export default function CategoriesPage() {
   const [rowSelection, setRowSelection] = React.useState({})
 
   const [openSheet, setOpenSheet] = React.useState(false)
-
   const [editingCategory, setEditingCategory] = React.useState<Category | null>(
     null
   )
-
-  const [form, setForm] = React.useState<CategoryForm>({
-    name: "",
-  })
+  const [form, setForm] = React.useState<CategoryForm>({ name: "" })
 
   const fetchCategories = React.useCallback(async () => {
     try {
       const sort = sorting[0]
-
       const sortField = SORT_FIELD_MAP[sort?.id ?? "categoryId"] ?? "id"
-
       const sortDirection = sort?.desc ? "DESC" : "ASC"
 
       const data = await getCategories({
@@ -149,23 +132,12 @@ export default function CategoriesPage() {
   const handleSortingChange = (columnId: string) => {
     setSorting((prev) => {
       const current = prev[0]
-
       if (current?.id === columnId) {
-        return [
-          {
-            id: columnId,
-            desc: !current.desc,
-          },
-        ]
+        return [{ id: columnId, desc: !current.desc }]
       }
-
-      return [
-        {
-          id: columnId,
-          desc: false,
-        },
-      ]
+      return [{ id: columnId, desc: false }]
     })
+    setPagination((p) => ({ ...p, pageIndex: 0 }))
   }
 
   const sortableHeader = (label: string, column: Column<Category>) => (
@@ -178,6 +150,46 @@ export default function CategoriesPage() {
       <IconArrowsSort className="ml-2 size-4" />
     </Button>
   )
+
+  const openAddSheet = () => {
+    setEditingCategory(null)
+    setForm({ name: "" })
+    setOpenSheet(true)
+  }
+
+  const openEditSheet = (category: Category) => {
+    setEditingCategory(category)
+    setForm({ name: category.name })
+    setOpenSheet(true)
+  }
+
+  const handleSave = async () => {
+    try {
+      if (editingCategory) {
+        await updateCategory(editingCategory.categoryId, form)
+        toast.success("Category updated")
+      } else {
+        await createCategory(form)
+        toast.success("Category created")
+      }
+      setOpenSheet(false)
+      await fetchCategories()
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to save category")
+    }
+  }
+
+  const handleDelete = async (categoryId: number) => {
+    try {
+      await deleteCategory(categoryId)
+      toast.success("Category deleted")
+      await fetchCategories()
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to delete category")
+    }
+  }
 
   const columns: ColumnDef<Category>[] = [
     {
@@ -192,7 +204,6 @@ export default function CategoriesPage() {
       id: "actions",
       cell: ({ row }) => {
         const category = row.original
-
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -200,27 +211,15 @@ export default function CategoriesPage() {
                 <IconDotsVertical className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-
               <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                onClick={() => {
-                  setEditingCategory(category)
-                  setForm({
-                    name: category.name,
-                  })
-                  setOpenSheet(true)
-                }}
-              >
+              <DropdownMenuItem onClick={() => openEditSheet(category)}>
                 Edit
               </DropdownMenuItem>
-
               <DropdownMenuItem
                 className="text-red-500"
-                onClick={() => void deleteCategory(category.categoryId)}
+                onClick={() => void handleDelete(category.categoryId)}
               >
                 Delete
               </DropdownMenuItem>
@@ -234,12 +233,7 @@ export default function CategoriesPage() {
   const table = useReactTable({
     data: categories,
     columns,
-    state: {
-      sorting,
-      pagination,
-      columnVisibility,
-      rowSelection,
-    },
+    state: { sorting, pagination, columnVisibility, rowSelection },
     manualSorting: true,
     manualPagination: true,
     pageCount: totalPages,
@@ -251,22 +245,27 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-4">
-      <Input
-        placeholder="Search..."
-        value={searchInput}
-        onChange={(e) => setSearchInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            setSearch(searchInput)
+      {/* TOP BAR */}
+      <div className="flex items-center gap-2">
+        <Input
+          placeholder="Search... (press Enter)"
+          className="max-w-sm"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              setSearch(searchInput)
+              setPagination((p) => ({ ...p, pageIndex: 0 }))
+            }
+          }}
+        />
+        <Button onClick={openAddSheet}>
+          <IconPlus className="mr-2 size-4" />
+          Add Category
+        </Button>
+      </div>
 
-            setPagination((p) => ({
-              ...p,
-              pageIndex: 0,
-            }))
-          }
-        }}
-      />
-
+      {/* TABLE */}
       <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
@@ -283,21 +282,35 @@ export default function CategoriesPage() {
               </TableRow>
             ))}
           </TableHeader>
-
           <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
+            {table.getRowModel().rows.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  No categories found.
+                </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </div>
 
+      {/* PAGINATION */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           Showing{" "}
@@ -312,68 +325,105 @@ export default function CategoriesPage() {
           of {totalElements} entries
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            disabled={pagination.pageIndex === 0}
-            onClick={() =>
-              setPagination((p) => ({
-                ...p,
-                pageIndex: 0,
-              }))
-            }
-          >
-            <IconChevronsLeft className="size-4" />
-          </Button>
-
-          <Button
-            variant="outline"
-            size="icon"
-            disabled={pagination.pageIndex === 0}
-            onClick={() =>
-              setPagination((p) => ({
-                ...p,
-                pageIndex: Math.max(0, p.pageIndex - 1),
-              }))
-            }
-          >
-            <IconChevronLeft className="size-4" />
-          </Button>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm">Rows per page</Label>
+            <Select
+              value={`${pagination.pageSize}`}
+              onValueChange={(value) => table.setPageSize(Number(value))}
+            >
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 30, 40, 50].map((size) => (
+                  <SelectItem key={size} value={`${size}`}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="text-sm font-medium">
             Page {pagination.pageIndex + 1} of {totalPages}
           </div>
 
-          <Button
-            variant="outline"
-            size="icon"
-            disabled={pagination.pageIndex + 1 >= totalPages}
-            onClick={() =>
-              setPagination((p) => ({
-                ...p,
-                pageIndex: p.pageIndex + 1,
-              }))
-            }
-          >
-            <IconChevronRight className="size-4" />
-          </Button>
-
-          <Button
-            variant="outline"
-            size="icon"
-            disabled={pagination.pageIndex + 1 >= totalPages}
-            onClick={() =>
-              setPagination((p) => ({
-                ...p,
-                pageIndex: totalPages - 1,
-              }))
-            }
-          >
-            <IconChevronsRight className="size-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={pagination.pageIndex === 0}
+              onClick={() => setPagination((p) => ({ ...p, pageIndex: 0 }))}
+            >
+              <IconChevronsLeft className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={pagination.pageIndex === 0}
+              onClick={() =>
+                setPagination((p) => ({
+                  ...p,
+                  pageIndex: Math.max(0, p.pageIndex - 1),
+                }))
+              }
+            >
+              <IconChevronLeft className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={pagination.pageIndex + 1 >= totalPages}
+              onClick={() =>
+                setPagination((p) => ({ ...p, pageIndex: p.pageIndex + 1 }))
+              }
+            >
+              <IconChevronRight className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={pagination.pageIndex + 1 >= totalPages}
+              onClick={() =>
+                setPagination((p) => ({ ...p, pageIndex: totalPages - 1 }))
+              }
+            >
+              <IconChevronsRight className="size-4" />
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* SHEET */}
+      <Sheet open={openSheet} onOpenChange={setOpenSheet}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>
+              {editingCategory ? "Edit Category" : "Add Category"}
+            </SheetTitle>
+            <SheetDescription>Fill category details below.</SheetDescription>
+          </SheetHeader>
+
+          <div className="m-3 space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ name: e.target.value })}
+                placeholder="e.g. FOOD"
+              />
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => void handleSave()}
+              disabled={!form.name.trim()}
+            >
+              {editingCategory ? "Update Category" : "Create Category"}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

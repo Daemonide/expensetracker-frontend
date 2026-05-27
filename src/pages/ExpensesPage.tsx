@@ -651,7 +651,7 @@ export default function ExpensesPage() {
             <SheetDescription>Fill expense details below.</SheetDescription>
           </SheetHeader>
 
-          <div className="mt-6 space-y-4">
+          <div className="m-3 space-y-4">
             <div className="space-y-2">
               <Label>Title</Label>
               <Input

@@ -20,7 +20,7 @@ export interface CategoryQueryParams {
 
 export const getCategories = (params: CategoryQueryParams = {}) => {
   const {
-    page = 1,
+    page = 0,
     size = 999,
     sortField = "id",
     sortDirection = "ASC",

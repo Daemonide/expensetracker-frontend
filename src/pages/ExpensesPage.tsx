@@ -53,6 +53,17 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
@@ -73,6 +84,8 @@ import {
   IconX,
   IconClock,
   IconArrowsSort,
+  IconFilter,
+  IconFilterOff,
 } from "@tabler/icons-react"
 
 import { toast } from "sonner"
@@ -106,10 +119,23 @@ export default function ExpensesPage() {
   const [search, setSearch] = React.useState("")
   const [searchInput, setSearchInput] = React.useState("")
 
+  // Filters
+  const [statusFilter, setStatusFilter] = React.useState("")
+  const [categoryFilter, setCategoryFilter] = React.useState("")
+  const [dateFrom, setDateFrom] = React.useState("")
+  const [dateTo, setDateTo] = React.useState("")
+
+  const hasActiveFilters = !!(
+    statusFilter ||
+    categoryFilter ||
+    dateFrom ||
+    dateTo ||
+    search
+  )
+
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "date", desc: true },
   ])
-
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
@@ -127,6 +153,10 @@ export default function ExpensesPage() {
     null
   )
 
+  // Confirmation dialog state
+  const [deleteTarget, setDeleteTarget] = React.useState<Expense | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false)
+
   const [form, setForm] = React.useState<ExpenseForm>({
     title: "",
     amount: 0,
@@ -140,13 +170,17 @@ export default function ExpensesPage() {
       const sortField = SORT_FIELD_MAP[sorting[0]?.id ?? "date"] ?? "date"
       const sortDirection = sorting[0]?.desc ? "DESC" : "ASC"
 
-      const response = await getExpenses(
-        pagination.pageIndex,
-        pagination.pageSize,
+      const response = await getExpenses({
+        page: pagination.pageIndex,
+        size: pagination.pageSize,
         sortField,
         sortDirection,
-        search
-      )
+        search,
+        status: statusFilter || undefined,
+        categoryId: categoryFilter ? Number(categoryFilter) : undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+      })
 
       setExpenses(response.content ?? [])
       setTotalPages(response.totalPages ?? 1)
@@ -155,15 +189,25 @@ export default function ExpensesPage() {
       console.error(err)
       toast.error("Failed to fetch expenses")
     }
-  }, [pagination.pageIndex, pagination.pageSize, sorting, search])
+  }, [
+    pagination.pageIndex,
+    pagination.pageSize,
+    sorting,
+    search,
+    statusFilter,
+    categoryFilter,
+    dateFrom,
+    dateTo,
+  ])
 
   React.useEffect(() => {
     void fetchExpenses()
   }, [fetchExpenses])
 
+  // Reset to page 0 when any filter/search changes
   React.useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }))
-  }, [search])
+  }, [search, statusFilter, categoryFilter, dateFrom, dateTo])
 
   React.useEffect(() => {
     const fetchCategories = async () => {
@@ -178,6 +222,16 @@ export default function ExpensesPage() {
     void fetchCategories()
   }, [])
 
+  const clearFilters = () => {
+    setSearch("")
+    setSearchInput("")
+    setStatusFilter("")
+    setCategoryFilter("")
+    setDateFrom("")
+    setDateTo("")
+    setPagination((p) => ({ ...p, pageIndex: 0 }))
+  }
+
   const rowSelection = React.useMemo<RowSelectionState>(() => {
     const selection: RowSelectionState = {}
     expenses.forEach((expense, index) => {
@@ -191,15 +245,11 @@ export default function ExpensesPage() {
   const handleRowSelectionChange = (updater: Updater<RowSelectionState>) => {
     const newSelection =
       typeof updater === "function" ? updater(rowSelection) : updater
-
     setSelectedIds((prev) => {
       const next = new Set(prev)
       expenses.forEach((expense, index) => {
-        if (newSelection[String(index)]) {
-          next.add(expense.expenseID)
-        } else {
-          next.delete(expense.expenseID)
-        }
+        if (newSelection[String(index)]) next.add(expense.expenseID)
+        else next.delete(expense.expenseID)
       })
       return next
     })
@@ -259,6 +309,8 @@ export default function ExpensesPage() {
     } catch (err) {
       console.error(err)
       toast.error("Failed to delete expense")
+    } finally {
+      setDeleteTarget(null)
     }
   }
 
@@ -272,34 +324,19 @@ export default function ExpensesPage() {
     } catch (err) {
       console.error(err)
       toast.error("Failed to delete selected expenses")
+    } finally {
+      setBulkDeleteOpen(false)
     }
   }
 
   const handleSortingChange = (columnId: string) => {
     setSorting((prev) => {
       const current = prev[0]
-
-      if (current?.id === columnId) {
-        return [
-          {
-            id: columnId,
-            desc: !current.desc,
-          },
-        ]
-      }
-
-      return [
-        {
-          id: columnId,
-          desc: false,
-        },
-      ]
+      if (current?.id === columnId)
+        return [{ id: columnId, desc: !current.desc }]
+      return [{ id: columnId, desc: false }]
     })
-
-    setPagination((p) => ({
-      ...p,
-      pageIndex: 0,
-    }))
+    setPagination((p) => ({ ...p, pageIndex: 0 }))
   }
 
   const sortableHeader = (label: string, column: Column<Expense>) => (
@@ -413,7 +450,7 @@ export default function ExpensesPage() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-red-500"
-                onClick={() => void handleDelete(expense.expenseID)}
+                onClick={() => setDeleteTarget(expense)}
               >
                 Delete
               </DropdownMenuItem>
@@ -449,7 +486,7 @@ export default function ExpensesPage() {
   return (
     <div className="w-full space-y-4">
       {/* TOP BAR */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="Search title... (press Enter)"
           className="max-w-sm"
@@ -464,10 +501,7 @@ export default function ExpensesPage() {
         />
 
         {selectedIds.size > 0 && (
-          <Button
-            variant="destructive"
-            onClick={() => void handleDeleteSelected()}
-          >
+          <Button variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
             Delete Selected ({selectedIds.size})
           </Button>
         )}
@@ -502,6 +536,87 @@ export default function ExpensesPage() {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+      </div>
+
+      {/* FILTER BAR */}
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/40 p-3">
+        <IconFilter className="mt-1 size-4 shrink-0 text-muted-foreground" />
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">Status</Label>
+          <Select
+            value={statusFilter || "ALL"}
+            onValueChange={(value) =>
+              setStatusFilter(value === "ALL" ? "" : value)
+            }
+          >
+            <SelectTrigger className="h-8 w-36 bg-background">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+
+            <SelectContent>
+              <SelectItem value="ALL">All statuses</SelectItem>
+              <SelectItem value="DONE">Done</SelectItem>
+              <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+              <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">Category</Label>
+          <Select
+            value={categoryFilter || "ALL"}
+            onValueChange={(value) =>
+              setCategoryFilter(value === "ALL" ? "" : value)
+            }
+          >
+            <SelectTrigger className="h-8 w-40 bg-background">
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All categories</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c.categoryId} value={String(c.categoryId)}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">From</Label>
+          <Input
+            type="date"
+            className="h-8 w-36 bg-background"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">To</Label>
+          <Input
+            type="date"
+            className="h-8 w-36 bg-background"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+        </div>
+
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1 text-muted-foreground"
+            onClick={clearFilters}
+          >
+            <IconFilterOff className="size-4" />
+            Clear
+          </Button>
+        )}
       </div>
 
       {/* TABLE */}
@@ -726,6 +841,60 @@ export default function ExpensesPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* SINGLE DELETE CONFIRMATION */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete expense?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <span className="font-medium text-foreground">
+                "{deleteTarget?.title}"
+              </span>
+              . This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+              onClick={() =>
+                deleteTarget && void handleDelete(deleteTarget.expenseID)
+              }
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* BULK DELETE CONFIRMATION */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selectedIds.size} expenses?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {selectedIds.size} selected expenses.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+              onClick={() => void handleDeleteSelected()}
+            >
+              Delete all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

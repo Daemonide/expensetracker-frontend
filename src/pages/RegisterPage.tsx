@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Wallet } from "lucide-react"
-import { login } from "@/api/auth"
+import { register } from "@/api/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,30 +14,34 @@ import {
 } from "@/components/ui/card"
 import Turnstile from "react-turnstile"
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const navigate = useNavigate()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [confirm, setConfirm] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [captchaToken, setCaptchaToken] = useState("")
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
+    if (password !== confirm) {
+      setError("Passwords do not match")
+      return
+    }
     try {
       setLoading(true)
       setError("")
-      const response = await login({
+      await register({
         username,
         password,
         captchaToken,
       })
-      localStorage.setItem("token", response.token)
-      navigate("/dashboard")
+      navigate("/login")
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? "Invalid username or password"
+          ?.message ?? "Registration failed"
       setError(msg)
     } finally {
       setLoading(false)
@@ -59,17 +63,17 @@ export default function LoginPage() {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to your account</CardDescription>
+            <CardTitle className="text-xl">Create an account</CardTitle>
+            <CardDescription>Enter your details to get started</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="flex flex-col gap-4">
+            <form onSubmit={handleRegister} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="username">Username</Label>
                 <Input
                   id="username"
                   type="text"
-                  placeholder="your username"
+                  placeholder="choose a username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
@@ -82,6 +86,16 @@ export default function LoginPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="confirm">Confirm Password</Label>
+                <Input
+                  id="confirm"
+                  type="password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
                   required
                 />
               </div>
@@ -99,19 +113,20 @@ export default function LoginPage() {
                   loading ||
                   !username.trim() ||
                   !password.trim() ||
+                  !confirm.trim() ||
                   !captchaToken
                 }
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? "Creating account..." : "Create account"}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">
-                Don&apos;t have an account?{" "}
+                Already have an account?{" "}
                 <Link
-                  to="/register"
+                  to="/login"
                   className="underline underline-offset-4 hover:text-primary"
                 >
-                  Sign up
+                  Sign in
                 </Link>
               </p>
             </form>
@@ -119,7 +134,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="px-6 text-center text-xs text-muted-foreground">
-          By signing in, you agree to our{" "}
+          By signing up, you agree to our{" "}
           <a
             href="#"
             className="underline underline-offset-4 hover:text-primary"

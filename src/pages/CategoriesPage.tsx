@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from "react"
 
 import {
@@ -37,6 +39,25 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -61,13 +82,6 @@ import {
   getCategories,
   updateCategory,
 } from "@/api/categories"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select.tsx"
 
 const SORT_FIELD_MAP: Record<string, string> = {
   categoryId: "id",
@@ -88,12 +102,10 @@ export default function CategoriesPage() {
 
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
-
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
   })
-
   const [rowSelection, setRowSelection] = React.useState({})
 
   const [openSheet, setOpenSheet] = React.useState(false)
@@ -101,6 +113,9 @@ export default function CategoriesPage() {
     null
   )
   const [form, setForm] = React.useState<CategoryForm>({ name: "" })
+
+  // Confirmation dialog
+  const [deleteTarget, setDeleteTarget] = React.useState<Category | null>(null)
 
   const fetchCategories = React.useCallback(async () => {
     try {
@@ -132,9 +147,8 @@ export default function CategoriesPage() {
   const handleSortingChange = (columnId: string) => {
     setSorting((prev) => {
       const current = prev[0]
-      if (current?.id === columnId) {
+      if (current?.id === columnId)
         return [{ id: columnId, desc: !current.desc }]
-      }
       return [{ id: columnId, desc: false }]
     })
     setPagination((p) => ({ ...p, pageIndex: 0 }))
@@ -188,6 +202,8 @@ export default function CategoriesPage() {
     } catch (err) {
       console.error(err)
       toast.error("Failed to delete category")
+    } finally {
+      setDeleteTarget(null)
     }
   }
 
@@ -199,6 +215,15 @@ export default function CategoriesPage() {
     {
       accessorKey: "name",
       header: ({ column }) => sortableHeader("Category Name", column),
+    },
+    {
+      accessorKey: "expenseCount",
+      header: "Expenses",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.original.expenseCount ?? 0}
+        </span>
+      ),
     },
     {
       id: "actions",
@@ -219,7 +244,7 @@ export default function CategoriesPage() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-red-500"
-                onClick={() => void handleDelete(category.categoryId)}
+                onClick={() => setDeleteTarget(category)}
               >
                 Delete
               </DropdownMenuItem>
@@ -404,7 +429,6 @@ export default function CategoriesPage() {
             </SheetTitle>
             <SheetDescription>Fill category details below.</SheetDescription>
           </SheetHeader>
-
           <div className="m-3 space-y-4">
             <div className="space-y-2">
               <Label>Name</Label>
@@ -424,6 +448,43 @@ export default function CategoriesPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* DELETE CONFIRMATION */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete category?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <span className="font-medium text-foreground">
+                "{deleteTarget?.name}"
+              </span>
+              .
+              {(deleteTarget?.expenseCount ?? 0) > 0 && (
+                <span className="mt-1 block text-destructive">
+                  Warning: this category has {deleteTarget?.expenseCount}{" "}
+                  expense
+                  {deleteTarget?.expenseCount === 1 ? "" : "s"} linked to it.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+              onClick={() =>
+                deleteTarget && void handleDelete(deleteTarget.categoryId)
+              }
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -31,13 +31,33 @@ export interface ExpenseResponse {
   sortDirection: string
 }
 
+export interface ExpenseQueryParams {
+  page?: number
+  size?: number
+  sortField?: string
+  sortDirection?: string
+  search?: string
+  status?: string
+  categoryId?: number
+  dateFrom?: string
+  dateTo?: string
+}
+
 export const getExpenses = async (
-  page = 1,
-  size = 10,
-  sortField = "date",
-  sortDirection = "DESC",
-  search = ""
-) => {
+  params: ExpenseQueryParams = {}
+): Promise<ExpenseResponse> => {
+  const {
+    page = 0,
+    size = 10,
+    sortField = "date",
+    sortDirection = "DESC",
+    search = "",
+    status,
+    categoryId,
+    dateFrom,
+    dateTo,
+  } = params
+
   const response = await api.get("/expenses", {
     params: {
       page,
@@ -45,6 +65,10 @@ export const getExpenses = async (
       sortField,
       sortDirection,
       ...(search.trim() && { search: search.trim() }),
+      ...(status && { status }),
+      ...(categoryId && { categoryId }),
+      ...(dateFrom && { dateFrom }),
+      ...(dateTo && { dateTo }),
     },
   })
   return response.data

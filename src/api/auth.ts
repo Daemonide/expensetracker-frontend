@@ -3,11 +3,13 @@ import api from "./axios"
 export interface LoginRequest {
   username: string
   password: string
+  captchaToken: string
 }
 
 export interface RegisterRequest {
   username: string
   password: string
+  captchaToken: string
 }
 
 export interface AuthResponse {

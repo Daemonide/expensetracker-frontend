@@ -4,6 +4,7 @@ import type { PaginatedResponse } from "@/types/pagination"
 export interface Category {
   categoryId: number
   name: string
+  expenseCount?: number
 }
 
 export interface CategoryForm {

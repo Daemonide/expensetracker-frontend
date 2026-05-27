@@ -148,6 +148,20 @@ export default function ExpensesPage() {
     pageSize: 10,
   })
 
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (
+      e.key === "Enter" &&
+      !e.shiftKey &&
+      form.title.trim() &&
+      form.amount &&
+      form.date &&
+      form.categoryId
+    ) {
+      e.preventDefault()
+      void handleSave()
+    }
+  }
+
   const [openSheet, setOpenSheet] = React.useState(false)
   const [editingExpense, setEditingExpense] = React.useState<Expense | null>(
     null
@@ -766,7 +780,7 @@ export default function ExpensesPage() {
             <SheetDescription>Fill expense details below.</SheetDescription>
           </SheetHeader>
 
-          <div className="m-3 space-y-4">
+          <div className="m-3 space-y-4" onKeyDown={handleFormKeyDown}>
             <div className="space-y-2">
               <Label>Title</Label>
               <Input

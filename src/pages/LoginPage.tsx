@@ -32,7 +32,8 @@ export default function LoginPage() {
         password,
         captchaToken,
       })
-      localStorage.setItem("token", response.token)
+      localStorage.setItem("token", response.accessToken)
+      localStorage.setItem("refreshToken", response.refreshToken)
       navigate("/dashboard")
     } catch (err: unknown) {
       const msg =

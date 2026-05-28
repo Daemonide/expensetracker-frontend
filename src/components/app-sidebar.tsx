@@ -22,18 +22,18 @@ import { Link, useNavigate } from "react-router-dom"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { getCurrentUser } from "@/api/auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { toast } from "sonner"
+import { useAuthStore } from "@/lib/auth-store.ts"
 
 export function AppSidebar() {
   const navigate = useNavigate()
-  const currentUser = getCurrentUser()
+  const currentUser = useAuthStore((s) => s.user)
 
   const user = currentUser?.username || "user"
   const email = currentUser?.email || ""
@@ -129,7 +129,7 @@ export function AppSidebar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuGroup>
+                <SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <Link to="/account">
@@ -138,11 +138,15 @@ export function AppSidebar() {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  <DropdownMenuItem>
+                  <SidebarMenuButton
+                    onClick={() =>
+                      toast.message("You don't have any notifications")
+                    }
+                  >
                     <Bell />
                     Notifications
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut />

@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { changePassword, updateAccount } from "@/api/account"
-import { getCurrentUser } from "@/api/auth"
 import { validatePassword } from "@/lib/password"
+import { useAuthStore } from "@/lib/auth-store"
 
 import {
   Card,
@@ -15,29 +15,41 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarImage } from "@/components/ui/avatar"
+
 import { toast } from "sonner"
 
 export default function AccountPage() {
-  const currentUser = getCurrentUser()
+  const currentUser = useAuthStore((s) => s.user)
+  const refreshUser = useAuthStore((s) => s.refreshUser)
 
   const [email, setEmail] = useState(currentUser?.email || "")
 
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
 
-  const [message, setMessage] = useState("")
-  const [error, setError] = useState("")
-
   async function handleAccountUpdate(e: React.FormEvent) {
     e.preventDefault()
 
     try {
-      setError("")
-      setMessage("")
-
       await updateAccount({
         email,
       })
+
+      const token = localStorage.getItem("token")
+
+      if (token) {
+        const parts = token.split(".")
+
+        const payload = JSON.parse(atob(parts[1]))
+
+        payload.email = email
+
+        parts[1] = btoa(JSON.stringify(payload))
+
+        localStorage.setItem("token", parts.join("."))
+      }
+
+      refreshUser()
 
       toast.success("Account updated")
     } catch (err: unknown) {
@@ -67,9 +79,6 @@ export default function AccountPage() {
     }
 
     try {
-      setError("")
-      setMessage("")
-
       await changePassword({
         currentPassword,
         newPassword,
@@ -106,6 +115,7 @@ export default function AccountPage() {
 
             <div>
               <CardTitle>Account</CardTitle>
+
               <CardDescription>Manage your account settings</CardDescription>
             </div>
           </div>
@@ -114,7 +124,14 @@ export default function AccountPage() {
         <CardContent>
           <form onSubmit={handleAccountUpdate} className="space-y-4">
             <div className="space-y-2">
+              <Label>Username</Label>
+
+              <Input value={currentUser?.username || ""} disabled />
+            </div>
+
+            <div className="space-y-2">
               <Label>Email</Label>
+
               <Input
                 type="email"
                 value={email}
@@ -130,6 +147,7 @@ export default function AccountPage() {
       <Card>
         <CardHeader>
           <CardTitle>Change Password</CardTitle>
+
           <CardDescription>Update your password securely</CardDescription>
         </CardHeader>
 
@@ -137,6 +155,7 @@ export default function AccountPage() {
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div className="space-y-2">
               <Label>Current Password</Label>
+
               <Input
                 type="password"
                 value={currentPassword}
@@ -146,6 +165,7 @@ export default function AccountPage() {
 
             <div className="space-y-2">
               <Label>New Password</Label>
+
               <Input
                 type="password"
                 value={newPassword}
@@ -168,10 +188,6 @@ export default function AccountPage() {
           </form>
         </CardContent>
       </Card>
-
-      {message && <p className="text-sm text-green-500">{message}</p>}
-
-      {error && <p className="text-sm text-red-500">{error}</p>}
     </div>
   )
 }

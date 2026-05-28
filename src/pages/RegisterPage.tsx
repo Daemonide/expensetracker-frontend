@@ -13,6 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import Turnstile from "react-turnstile"
+import { validatePassword } from "@/lib/password.ts"
+import { toast } from "sonner"
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -22,11 +24,18 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [captchaToken, setCaptchaToken] = useState("")
+  const [email, setEmail] = useState("")
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
+    const passwordError = validatePassword(password)
+
+    if (passwordError) {
+      toast.error(passwordError)
+      return
+    }
     if (password !== confirm) {
-      setError("Passwords do not match")
+      toast.error("Passwords do not match")
       return
     }
     try {
@@ -34,15 +43,17 @@ export default function RegisterPage() {
       setError("")
       await register({
         username,
+        email,
         password,
         captchaToken,
       })
+      toast.success("Account created successfully")
       navigate("/login")
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
           ?.message ?? "Registration failed"
-      setError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
@@ -76,6 +87,17 @@ export default function RegisterPage() {
                   placeholder="choose a username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>

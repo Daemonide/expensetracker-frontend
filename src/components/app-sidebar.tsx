@@ -28,12 +28,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { getCurrentUser } from "@/api/auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function AppSidebar() {
   const navigate = useNavigate()
-  const user = "Daemonide"
-  const email = "daemonide.sys@gmail.com"
+  const currentUser = getCurrentUser()
+
+  const user = currentUser?.username || "user"
+  const email = currentUser?.email || ""
+
+  const avatarUrl = currentUser?.avatar
 
   const handleLogout = () => {
     localStorage.removeItem("token")
@@ -95,10 +100,7 @@ export function AppSidebar() {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage
-                      src="https://avatars.githubusercontent.com/u/176737804?v=4&size=64"
-                      alt={user}
-                    />
+                    <AvatarImage src={avatarUrl} alt={user} />
                     <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
@@ -117,10 +119,7 @@ export function AppSidebar() {
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarImage
-                        src="https://avatars.githubusercontent.com/u/176737804?v=4&size=64"
-                        alt={user}
-                      />
+                      <AvatarImage src={avatarUrl} alt={user} />
                       <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
@@ -131,10 +130,14 @@ export function AppSidebar() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <BadgeCheck />
-                    Account
-                  </DropdownMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <Link to="/account">
+                        <BadgeCheck />
+                        <span>Account</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                   <DropdownMenuItem>
                     <Bell />
                     Notifications

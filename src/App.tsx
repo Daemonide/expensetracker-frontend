@@ -6,6 +6,7 @@ import CategoriesPage from "@/pages/CategoriesPage"
 import LoginPage from "@/pages/LoginPage"
 import RegisterPage from "@/pages/RegisterPage"
 import PrivateRoute from "@/components/PrivateRoute"
+import AccountPage from "@/pages/AccountPage.tsx"
 
 function App() {
   return (
@@ -36,6 +37,14 @@ function App() {
           element={
             <PrivateRoute>
               <CategoriesPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            <PrivateRoute>
+              <AccountPage />
             </PrivateRoute>
           }
         />

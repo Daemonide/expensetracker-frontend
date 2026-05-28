@@ -22,18 +22,23 @@ import { Link, useNavigate } from "react-router-dom"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { toast } from "sonner"
+import { useAuthStore } from "@/lib/auth-store.ts"
 
 export function AppSidebar() {
   const navigate = useNavigate()
-  const user = "Daemonide"
-  const email = "daemonide.sys@gmail.com"
+  const currentUser = useAuthStore((s) => s.user)
+
+  const user = currentUser?.username || "user"
+  const email = currentUser?.email || ""
+
+  const avatarUrl = currentUser?.avatar
 
   const handleLogout = () => {
     localStorage.removeItem("token")
@@ -95,10 +100,7 @@ export function AppSidebar() {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage
-                      src="https://avatars.githubusercontent.com/u/176737804?v=4&size=64"
-                      alt={user}
-                    />
+                    <AvatarImage src={avatarUrl} alt={user} />
                     <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
@@ -117,10 +119,7 @@ export function AppSidebar() {
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarImage
-                        src="https://avatars.githubusercontent.com/u/176737804?v=4&size=64"
-                        alt={user}
-                      />
+                      <AvatarImage src={avatarUrl} alt={user} />
                       <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
@@ -130,16 +129,24 @@ export function AppSidebar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <BadgeCheck />
-                    Account
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <Link to="/account">
+                        <BadgeCheck />
+                        <span>Account</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() =>
+                      toast.message("You don't have any notifications")
+                    }
+                  >
                     <Bell />
                     Notifications
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut />

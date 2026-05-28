@@ -436,6 +436,11 @@ export default function CategoriesPage() {
                 value={form.name}
                 onChange={(e) => setForm({ name: e.target.value })}
                 placeholder="e.g. FOOD"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && form.name.trim()) {
+                    void handleSave()
+                  }
+                }}
               />
             </div>
             <Button

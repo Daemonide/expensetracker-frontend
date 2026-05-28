@@ -1,10 +1,15 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Wallet } from "lucide-react"
+import Turnstile from "react-turnstile"
+
 import { register } from "@/api/auth"
+import { validatePassword } from "@/lib/password.ts"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+
 import {
   Card,
   CardContent,
@@ -12,48 +17,65 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import Turnstile from "react-turnstile"
-import { validatePassword } from "@/lib/password.ts"
+
 import { toast } from "sonner"
 
 export default function RegisterPage() {
   const navigate = useNavigate()
+
   const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
+
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+
   const [captchaToken, setCaptchaToken] = useState("")
-  const [email, setEmail] = useState("")
+
+  // used to fully remount Turnstile after failed registration
+  const [turnstileKey, setTurnstileKey] = useState(0)
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
+
     const passwordError = validatePassword(password)
 
     if (passwordError) {
       toast.error(passwordError)
       return
     }
+
     if (password !== confirm) {
       toast.error("Passwords do not match")
       return
     }
+
     try {
       setLoading(true)
       setError("")
+
       await register({
         username,
         email,
         password,
         captchaToken,
       })
+
       toast.success("Account created successfully")
+
       navigate("/login")
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
           ?.message ?? "Registration failed"
+
+      setError(msg)
       toast.error(msg)
+
+      // reset captcha after failed registration
+      setCaptchaToken("")
+      setTurnstileKey((prev) => prev + 1)
     } finally {
       setLoading(false)
     }
@@ -75,12 +97,15 @@ export default function RegisterPage() {
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Create an account</CardTitle>
+
             <CardDescription>Enter your details to get started</CardDescription>
           </CardHeader>
+
           <CardContent>
             <form onSubmit={handleRegister} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="username">Username</Label>
+
                 <Input
                   id="username"
                   type="text"
@@ -90,8 +115,10 @@ export default function RegisterPage() {
                   required
                 />
               </div>
+
               <div className="flex flex-col gap-2">
                 <Label htmlFor="email">Email</Label>
+
                 <Input
                   id="email"
                   type="email"
@@ -101,8 +128,10 @@ export default function RegisterPage() {
                   required
                 />
               </div>
+
               <div className="flex flex-col gap-2">
                 <Label htmlFor="password">Password</Label>
+
                 <Input
                   id="password"
                   type="password"
@@ -111,8 +140,10 @@ export default function RegisterPage() {
                   required
                 />
               </div>
+
               <div className="flex flex-col gap-2">
                 <Label htmlFor="confirm">Confirm Password</Label>
+
                 <Input
                   id="confirm"
                   type="password"
@@ -123,17 +154,23 @@ export default function RegisterPage() {
               </div>
 
               {error && <p className="text-sm text-red-500">{error}</p>}
+
               <Turnstile
+                key={turnstileKey}
                 sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                 onVerify={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken("")}
+                onError={() => setCaptchaToken("")}
                 theme="auto"
               />
+
               <Button
                 type="submit"
                 className="w-full"
                 disabled={
                   loading ||
                   !username.trim() ||
+                  !email.trim() ||
                   !password.trim() ||
                   !confirm.trim() ||
                   !captchaToken

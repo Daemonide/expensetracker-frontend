@@ -69,6 +69,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 
 import {
   IconChevronDown,
@@ -109,9 +110,49 @@ const SORT_FIELD_MAP: Record<string, string> = {
   categoryName: "category.name",
 }
 
+function ExpensesTableSkeleton({ rows = 10 }: { rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, i) => (
+        <TableRow key={i}>
+          {/* Checkbox */}
+          <TableCell>
+            <Skeleton className="size-4 rounded" />
+          </TableCell>
+          {/* Title */}
+          <TableCell>
+            <Skeleton className="h-4 w-36" />
+          </TableCell>
+          {/* Category */}
+          <TableCell>
+            <Skeleton className="h-4 w-24" />
+          </TableCell>
+          {/* Status badge */}
+          <TableCell>
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </TableCell>
+          {/* Amount */}
+          <TableCell>
+            <Skeleton className="h-4 w-20" />
+          </TableCell>
+          {/* Date */}
+          <TableCell>
+            <Skeleton className="h-4 w-24" />
+          </TableCell>
+          {/* Actions */}
+          <TableCell>
+            <Skeleton className="size-8 rounded-md" />
+          </TableCell>
+        </TableRow>
+      ))}
+    </>
+  )
+}
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = React.useState<Expense[]>([])
   const [categories, setCategories] = React.useState<Category[]>([])
+  const [loading, setLoading] = React.useState(true)
 
   const [totalPages, setTotalPages] = React.useState(1)
   const [totalElements, setTotalElements] = React.useState(0)
@@ -167,7 +208,6 @@ export default function ExpensesPage() {
     null
   )
 
-  // Confirmation dialog state
   const [deleteTarget, setDeleteTarget] = React.useState<Expense | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false)
 
@@ -181,6 +221,7 @@ export default function ExpensesPage() {
 
   const fetchExpenses = React.useCallback(async () => {
     try {
+      setLoading(true)
       const sortField = SORT_FIELD_MAP[sorting[0]?.id ?? "date"] ?? "date"
       const sortDirection = sorting[0]?.desc ? "DESC" : "ASC"
 
@@ -202,6 +243,8 @@ export default function ExpensesPage() {
     } catch (err) {
       console.error(err)
       toast.error("Failed to fetch expenses")
+    } finally {
+      setLoading(false)
     }
   }, [
     pagination.pageIndex,
@@ -567,7 +610,6 @@ export default function ExpensesPage() {
             <SelectTrigger className="h-8 w-36 bg-background">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
-
             <SelectContent>
               <SelectItem value="ALL">All statuses</SelectItem>
               <SelectItem value="DONE">Done</SelectItem>
@@ -653,7 +695,9 @@ export default function ExpensesPage() {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length ? (
+            {loading ? (
+              <ExpensesTableSkeleton rows={pagination.pageSize} />
+            ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -686,20 +730,26 @@ export default function ExpensesPage() {
       {/* PAGINATION */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing{" "}
-          {totalElements === 0
-            ? 0
-            : pagination.pageIndex * pagination.pageSize + 1}{" "}
-          to{" "}
-          {Math.min(
-            (pagination.pageIndex + 1) * pagination.pageSize,
-            totalElements
-          )}{" "}
-          of {totalElements} entries
-          {selectedIds.size > 0 && (
-            <span className="ml-2 font-medium text-foreground">
-              · {selectedIds.size} selected
-            </span>
+          {loading ? (
+            <Skeleton className="h-4 w-48" />
+          ) : (
+            <>
+              Showing{" "}
+              {totalElements === 0
+                ? 0
+                : pagination.pageIndex * pagination.pageSize + 1}{" "}
+              to{" "}
+              {Math.min(
+                (pagination.pageIndex + 1) * pagination.pageSize,
+                totalElements
+              )}{" "}
+              of {totalElements} entries
+              {selectedIds.size > 0 && (
+                <span className="ml-2 font-medium text-foreground">
+                  · {selectedIds.size} selected
+                </span>
+              )}
+            </>
           )}
         </div>
 

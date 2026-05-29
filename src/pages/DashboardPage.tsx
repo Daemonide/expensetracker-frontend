@@ -23,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { getExpenses, type Expense } from "@/api/expenses"
 import {
   IconReceipt,
@@ -69,6 +70,84 @@ function getLast6Months() {
       amount: 0,
     }
   })
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards Skeleton */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="size-4 rounded" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="mt-2 h-3 w-20" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Charts Row 1 Skeleton */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="mt-1 h-4 w-48" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-[250px] w-full rounded-md" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="mt-1 h-4 w-44" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-[250px] w-full rounded-md" />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 2 Skeleton */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="mt-1 h-4 w-44" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-[220px] w-full rounded-md" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="mt-1 h-4 w-32" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
 }
 
 export default function DashboardPage() {
@@ -147,11 +226,7 @@ export default function DashboardPage() {
   const recent = expenses.slice(0, 5)
 
   if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
-        Loading dashboard...
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   return (
@@ -251,11 +326,9 @@ export default function DashboardPage() {
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null
-
                     return (
                       <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
                         <p className="mb-1 text-sm font-medium">{label}</p>
-
                         {payload.map((item, index) => (
                           <div
                             key={index}
@@ -309,17 +382,12 @@ export default function DashboardPage() {
                   width={90}
                 />
                 <Tooltip
-                  cursor={{
-                    fill: "hsl(var(--muted))",
-                    opacity: 0.35,
-                  }}
+                  cursor={{ fill: "hsl(var(--muted))", opacity: 0.35 }}
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null
-
                     return (
                       <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
                         <p className="mb-1 text-sm font-medium">{label}</p>
-
                         {payload.map((item, index) => (
                           <div
                             key={index}
@@ -378,22 +446,16 @@ export default function DashboardPage() {
                 <Tooltip
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null
-
                     const item = payload[0].payload
-
                     return (
                       <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
                         <p className="mb-1 text-sm font-medium">{item.name}</p>
-
                         <div className="flex items-center justify-between gap-4 text-sm">
                           <span>Expenses</span>
-
                           <span className="font-medium">{item.count}</span>
                         </div>
-
                         <div className="flex items-center justify-between gap-4 text-sm">
                           <span>Amount</span>
-
                           <span className="font-medium">
                             {formatINR(item.amount)}
                           </span>

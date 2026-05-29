@@ -61,6 +61,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 
 import {
   IconChevronLeft,
@@ -88,10 +89,38 @@ const SORT_FIELD_MAP: Record<string, string> = {
   name: "name",
 }
 
+function CategoriesTableSkeleton({ rows = 10 }: { rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, i) => (
+        <TableRow key={i}>
+          {/* ID */}
+          <TableCell>
+            <Skeleton className="h-4 w-8" />
+          </TableCell>
+          {/* Name */}
+          <TableCell>
+            <Skeleton className="h-4 w-32" />
+          </TableCell>
+          {/* Expense count */}
+          <TableCell>
+            <Skeleton className="h-4 w-6" />
+          </TableCell>
+          {/* Actions */}
+          <TableCell>
+            <Skeleton className="size-8 rounded-md" />
+          </TableCell>
+        </TableRow>
+      ))}
+    </>
+  )
+}
+
 export default function CategoriesPage() {
   const [categories, setCategories] = React.useState<Category[]>([])
   const [totalPages, setTotalPages] = React.useState(1)
   const [totalElements, setTotalElements] = React.useState(0)
+  const [loading, setLoading] = React.useState(true)
 
   const [search, setSearch] = React.useState("")
   const [searchInput, setSearchInput] = React.useState("")
@@ -114,11 +143,11 @@ export default function CategoriesPage() {
   )
   const [form, setForm] = React.useState<CategoryForm>({ name: "" })
 
-  // Confirmation dialog
   const [deleteTarget, setDeleteTarget] = React.useState<Category | null>(null)
 
   const fetchCategories = React.useCallback(async () => {
     try {
+      setLoading(true)
       const sort = sorting[0]
       const sortField = SORT_FIELD_MAP[sort?.id ?? "categoryId"] ?? "id"
       const sortDirection = sort?.desc ? "DESC" : "ASC"
@@ -137,6 +166,8 @@ export default function CategoriesPage() {
     } catch (err) {
       console.error(err)
       toast.error("Failed to fetch categories")
+    } finally {
+      setLoading(false)
     }
   }, [pagination.pageIndex, pagination.pageSize, sorting, search])
 
@@ -308,7 +339,9 @@ export default function CategoriesPage() {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length ? (
+            {loading ? (
+              <CategoriesTableSkeleton rows={pagination.pageSize} />
+            ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
@@ -338,16 +371,22 @@ export default function CategoriesPage() {
       {/* PAGINATION */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing{" "}
-          {totalElements === 0
-            ? 0
-            : pagination.pageIndex * pagination.pageSize + 1}{" "}
-          to{" "}
-          {Math.min(
-            (pagination.pageIndex + 1) * pagination.pageSize,
-            totalElements
-          )}{" "}
-          of {totalElements} entries
+          {loading ? (
+            <Skeleton className="h-4 w-40" />
+          ) : (
+            <>
+              Showing{" "}
+              {totalElements === 0
+                ? 0
+                : pagination.pageIndex * pagination.pageSize + 1}{" "}
+              to{" "}
+              {Math.min(
+                (pagination.pageIndex + 1) * pagination.pageSize,
+                totalElements
+              )}{" "}
+              of {totalElements} entries
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-6">

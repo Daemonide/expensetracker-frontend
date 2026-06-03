@@ -7,6 +7,7 @@ import LoginPage from "@/pages/LoginPage"
 import RegisterPage from "@/pages/RegisterPage"
 import PrivateRoute from "@/components/PrivateRoute"
 import AccountPage from "@/pages/AccountPage.tsx"
+import NotFoundPage from "@/pages/NotFoundPage.tsx"
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
           }
         />
       </Route>
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

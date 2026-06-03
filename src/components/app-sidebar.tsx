@@ -30,6 +30,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
 import { useAuthStore } from "@/lib/auth-store.ts"
+import { logout } from "@/api/auth.ts"
 
 export function AppSidebar() {
   const navigate = useNavigate()
@@ -40,9 +41,23 @@ export function AppSidebar() {
 
   const avatarUrl = currentUser?.avatar
 
-  const handleLogout = () => {
-    localStorage.removeItem("token")
-    navigate("/login")
+  const handleLogout = async () => {
+    try {
+      const refreshToken = localStorage.getItem("refreshToken")
+
+      if (refreshToken) {
+        await logout({
+          refreshToken,
+        })
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      localStorage.removeItem("token")
+      localStorage.removeItem("refreshToken")
+
+      navigate("/login")
+    }
   }
 
   return (
@@ -129,28 +144,28 @@ export function AppSidebar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <Link to="/account">
-                        <BadgeCheck />
-                        <span>Account</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() =>
-                      toast.message("You don't have any notifications")
-                    }
-                  >
-                    <Bell />
-                    Notifications
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+
+                <DropdownMenuItem asChild>
+                  <Link to="/account">
+                    <BadgeCheck />
+                    <span>Account</span>
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() =>
+                    toast.message("You don't have any notifications")
+                  }
+                >
+                  <Bell />
+                  <span>Notifications</span>
+                </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
+
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut />
-                  Log out
+                  <span>Log out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

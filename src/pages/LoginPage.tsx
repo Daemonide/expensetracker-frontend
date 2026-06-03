@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { type FormEvent, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Wallet } from "lucide-react"
 import Turnstile from "react-turnstile"
@@ -32,7 +32,7 @@ export default function LoginPage() {
   // used to fully remount Turnstile after failed login
   const [turnstileKey, setTurnstileKey] = useState(0)
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: FormEvent) {
     e.preventDefault()
 
     try {

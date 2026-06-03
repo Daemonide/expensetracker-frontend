@@ -8,7 +8,6 @@ import {
   Bar,
   PieChart,
   Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -24,7 +23,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getExpenses, type Expense } from "@/api/expenses"
 import {
   IconReceipt,
   IconTrendingUp,
@@ -32,6 +30,7 @@ import {
   IconCircleCheckFilled,
 } from "@tabler/icons-react"
 import { toast } from "sonner"
+import { type DashboardResponse, getDashboard } from "@/api/dashboard.ts"
 
 const CHART_COLORS = [
   "#6366f1",
@@ -57,19 +56,6 @@ function formatINR(amount: number) {
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(amount)
-}
-
-function getLast6Months() {
-  return Array.from({ length: 6 }, (_, i) => {
-    const d = new Date()
-    d.setDate(1)
-    d.setMonth(d.getMonth() - (5 - i))
-    return {
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      label: d.toLocaleString("default", { month: "short", year: "2-digit" }),
-      amount: 0,
-    }
-  })
 }
 
 function DashboardSkeleton() {
@@ -151,83 +137,73 @@ function DashboardSkeleton() {
 }
 
 export default function DashboardPage() {
-  const [expenses, setExpenses] = React.useState<Expense[]>([])
+  const [dashboard, setDashboard] = React.useState<DashboardResponse | null>(
+    null
+  )
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {
-    const fetchAll = async () => {
+    const fetchDashboard = async () => {
       try {
         setLoading(true)
-        const data = await getExpenses({
-          page: 0,
-          size: 1000,
-          sortField: "date",
-          sortDirection: "DESC",
+
+        const data = await getDashboard()
+
+        setDashboard(data)
+      } catch (error) {
+        console.error(error)
+
+        toast.error("Failed to load dashboard", {
+          description:
+            "Unable to fetch dashboard data. Please try again later.",
         })
-        setExpenses(data.content ?? [])
-      } catch {
-        toast.error("Failed to load dashboard data")
       } finally {
         setLoading(false)
       }
     }
-    void fetchAll()
+
+    void fetchDashboard()
   }, [])
-
-  const now = new Date()
-  const totalAmount = expenses.reduce((s, e) => s + e.amount, 0)
-
-  const thisMonthExpenses = expenses.filter((e) => {
-    const d = new Date(e.date)
-    return (
-      d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-    )
-  })
-  const thisMonthAmount = thisMonthExpenses.reduce((s, e) => s + e.amount, 0)
-
-  const pendingAmount = expenses
-    .filter((e) => e.status === "PENDING")
-    .reduce((s, e) => s + e.amount, 0)
-
-  const doneAmount = expenses
-    .filter((e) => e.status === "DONE")
-    .reduce((s, e) => s + e.amount, 0)
-
-  const categoryMap: Record<string, number> = {}
-  expenses.forEach((e) => {
-    categoryMap[e.categoryName] = (categoryMap[e.categoryName] || 0) + e.amount
-  })
-  const categoryData = Object.entries(categoryMap)
-    .map(([name, amount]) => ({ name, amount }))
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 8)
-
-  const monthlyData = getLast6Months()
-  expenses.forEach((e) => {
-    const key = e.date.substring(0, 7)
-    const month = monthlyData.find((m) => m.key === key)
-    if (month) month.amount += e.amount
-  })
-
-  const statusData = (["DONE", "IN_PROGRESS", "PENDING", "CANCELLED"] as const)
-    .map((s) => ({
-      status: s,
-      name: s
-        .split("_")
-        .map((w) => w[0] + w.slice(1).toLowerCase())
-        .join(" "),
-      count: expenses.filter((e) => e.status === s).length,
-      amount: expenses
-        .filter((e) => e.status === s)
-        .reduce((sum, e) => sum + e.amount, 0),
-    }))
-    .filter((s) => s.count > 0)
-
-  const recent = expenses.slice(0, 5)
 
   if (loading) {
     return <DashboardSkeleton />
   }
+
+  if (!dashboard) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center">
+          <p className="text-muted-foreground">
+            Failed to load dashboard data.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const STATUS_ORDER = ["DONE", "IN_PROGRESS", "PENDING", "CANCELLED"]
+
+  const statusData = [...dashboard.statusSummary]
+    .sort(
+      (a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status)
+    )
+    .map((s) => ({
+      ...s,
+      name: s.status
+        .split("_")
+        .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+        .join(" "),
+    }))
+
+  const pieData = statusData.map((item, index) => ({
+    ...item,
+    fill: STATUS_COLORS[item.status] ?? CHART_COLORS[index],
+  }))
+
+  const categoryData = dashboard.categorySummary.map((item, index) => ({
+    ...item,
+    fill: CHART_COLORS[index % CHART_COLORS.length],
+  }))
 
   return (
     <div className="space-y-6">
@@ -241,9 +217,11 @@ export default function DashboardPage() {
             <IconReceipt className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatINR(totalAmount)}</div>
+            <div className="text-2xl font-bold">
+              {formatINR(dashboard.totalSpent)}
+            </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {expenses.length} expenses total
+              {dashboard.totalExpenses} expenses total
             </p>
           </CardContent>
         </Card>
@@ -257,10 +235,10 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatINR(thisMonthAmount)}
+              {formatINR(dashboard.thisMonthSpent)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {thisMonthExpenses.length} expenses
+              {dashboard.thisMonthExpenses} expenses
             </p>
           </CardContent>
         </Card>
@@ -273,9 +251,11 @@ export default function DashboardPage() {
             <IconClock className="size-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatINR(pendingAmount)}</div>
+            <div className="text-2xl font-bold">
+              {formatINR(dashboard.pendingAmount)}
+            </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {expenses.filter((e) => e.status === "PENDING").length} expenses
+              {dashboard.pendingExpenses} expenses
             </p>
           </CardContent>
         </Card>
@@ -288,9 +268,11 @@ export default function DashboardPage() {
             <IconCircleCheckFilled className="size-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatINR(doneAmount)}</div>
+            <div className="text-2xl font-bold">
+              {formatINR(dashboard.completedAmount)}
+            </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {expenses.filter((e) => e.status === "DONE").length} expenses
+              {dashboard.completedExpenses} expenses
             </p>
           </CardContent>
         </Card>
@@ -305,7 +287,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={monthlyData}>
+              <AreaChart data={dashboard.monthlyTrend}>
                 <defs>
                   <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
@@ -316,7 +298,7 @@ export default function DashboardPage() {
                   strokeDasharray="3 3"
                   stroke="hsl(var(--border))"
                 />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis
                   tick={{ fontSize: 12 }}
                   tickFormatter={(v: number) =>
@@ -377,7 +359,7 @@ export default function DashboardPage() {
                 />
                 <YAxis
                   type="category"
-                  dataKey="name"
+                  dataKey="category"
                   tick={{ fontSize: 11 }}
                   width={90}
                 />
@@ -403,14 +385,7 @@ export default function DashboardPage() {
                     )
                   }}
                 />
-                <Bar dataKey="amount" radius={4}>
-                  {categoryData.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={CHART_COLORS[i % CHART_COLORS.length]}
-                    />
-                  ))}
-                </Bar>
+                <Bar dataKey="amount" radius={4} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -428,21 +403,14 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
-                  data={statusData}
+                  data={pieData}
+                  dataKey="count"
+                  nameKey="name"
                   cx="50%"
                   cy="50%"
                   innerRadius={55}
                   outerRadius={85}
-                  dataKey="count"
-                  nameKey="name"
-                >
-                  {statusData.map((entry, i) => (
-                    <Cell
-                      key={i}
-                      fill={STATUS_COLORS[entry.status] ?? CHART_COLORS[i]}
-                    />
-                  ))}
-                </Pie>
+                />
                 <Tooltip
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null
@@ -476,13 +444,13 @@ export default function DashboardPage() {
             <CardDescription>Your last 5 expenses</CardDescription>
           </CardHeader>
           <CardContent>
-            {recent.length === 0 ? (
+            {dashboard.recentExpenses.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 No expenses yet
               </p>
             ) : (
               <div className="space-y-4">
-                {recent.map((e) => (
+                {dashboard.recentExpenses.map((e) => (
                   <div
                     key={e.expenseID}
                     className="flex items-center justify-between"

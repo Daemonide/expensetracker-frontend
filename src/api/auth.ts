@@ -24,6 +24,10 @@ interface JwtPayload {
   email: string
 }
 
+export interface LogoutRequest {
+  refreshToken: string
+}
+
 function capitalize(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
@@ -51,3 +55,5 @@ export const login = (data: LoginRequest) =>
 
 export const register = (data: RegisterRequest) =>
   api.post<string>("/auth/register", data).then((r) => r.data)
+
+export const logout = (data: LogoutRequest) => api.post("/auth/logout", data)

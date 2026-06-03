@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { type FormEvent, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Wallet } from "lucide-react"
 import Turnstile from "react-turnstile"
@@ -36,7 +36,7 @@ export default function RegisterPage() {
   // used to fully remount Turnstile after failed registration
   const [turnstileKey, setTurnstileKey] = useState(0)
 
-  async function handleRegister(e: React.FormEvent) {
+  async function handleRegister(e: FormEvent) {
     e.preventDefault()
 
     const passwordError = validatePassword(password)

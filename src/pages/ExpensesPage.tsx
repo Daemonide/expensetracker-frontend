@@ -110,6 +110,14 @@ const SORT_FIELD_MAP: Record<string, string> = {
   categoryName: "category.name",
 }
 
+const COLUMN_LABELS: Record<string, string> = {
+  title: "Title",
+  categoryName: "Category",
+  status: "Status",
+  amount: "Amount",
+  date: "Date",
+}
+
 function ExpensesTableSkeleton({ rows = 10 }: { rows?: number }) {
   return (
     <>
@@ -463,7 +471,10 @@ export default function ExpensesPage() {
             ) : (
               <IconX className="size-4 text-red-500" />
             )}
-            {status}
+            {status
+              .split("_")
+              .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+              .join(" ")}
           </Badge>
         )
       },
@@ -587,7 +598,7 @@ export default function ExpensesPage() {
                     checked={column.getIsVisible()}
                     onCheckedChange={(value) => column.toggleVisibility(value)}
                   >
-                    {column.id}
+                    {COLUMN_LABELS[column.id] ?? column.id}
                   </DropdownMenuCheckboxItem>
                 ))}
             </DropdownMenuGroup>

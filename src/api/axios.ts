@@ -6,6 +6,13 @@ const api = axios.create({
   baseURL: API_URL,
 })
 
+const logout = () => {
+  localStorage.removeItem("token")
+  localStorage.removeItem("refreshToken")
+
+  window.location.href = "/login"
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token")
 
@@ -13,7 +20,7 @@ api.interceptors.request.use((config) => {
     config.url?.includes("/auth/login") ||
     config.url?.includes("/auth/register") ||
     config.url?.includes("/auth/refresh") ||
-    config?.url?.includes("/auth/logout")
+    config.url?.includes("/auth/logout")
 
   if (token && !isAuthRoute) {
     config.headers.Authorization = `Bearer ${token}`
@@ -37,21 +44,21 @@ api.interceptors.response.use(
       originalRequest?.url?.includes("/auth/refresh") ||
       originalRequest?.url?.includes("/auth/logout")
 
-    // Access token expired
     if (
       error.response?.status === 401 &&
-      !originalRequest._retry &&
+      !originalRequest?._retry &&
       !isAuthRoute
     ) {
       originalRequest._retry = true
 
+      const refreshToken = localStorage.getItem("refreshToken")
+
+      if (!refreshToken) {
+        logout()
+        return Promise.reject(new Error("No refresh token"))
+      }
+
       try {
-        const refreshToken = localStorage.getItem("refreshToken")
-
-        if (!refreshToken) {
-          throw new Error("No refresh token")
-        }
-
         const response = await axios.post(`${API_URL}/auth/refresh`, {
           refreshToken,
         })
@@ -66,10 +73,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         console.error("Refresh failed", refreshError)
 
-        localStorage.removeItem("token")
-        localStorage.removeItem("refreshToken")
-
-        window.location.href = "/login"
+        logout()
 
         return Promise.reject(refreshError)
       }

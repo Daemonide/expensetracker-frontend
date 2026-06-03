@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type FormEvent } from "react"
 import { changePassword, updateAccount } from "@/api/account"
 import { validatePassword } from "@/lib/password"
 import { useAuthStore } from "@/lib/auth-store"
@@ -27,7 +27,7 @@ export default function AccountPage() {
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
 
-  async function handleAccountUpdate(e: React.FormEvent) {
+  async function handleAccountUpdate(e: FormEvent) {
     e.preventDefault()
 
     try {
@@ -68,7 +68,7 @@ export default function AccountPage() {
     }
   }
 
-  async function handlePasswordChange(e: React.FormEvent) {
+  async function handlePasswordChange(e: FormEvent) {
     e.preventDefault()
 
     const validation = validatePassword(newPassword)

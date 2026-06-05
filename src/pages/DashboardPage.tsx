@@ -28,6 +28,8 @@ import {
   IconTrendingUp,
   IconClock,
   IconCircleCheckFilled,
+  IconMinus,
+  IconTrendingDown,
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { type DashboardResponse, getDashboard } from "@/api/dashboard.ts"
@@ -56,6 +58,43 @@ function formatINR(amount: number) {
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(amount)
+}
+
+function TrendBadge({
+  current,
+  previous,
+}: {
+  current: number
+  previous: number
+}) {
+  if (previous === 0) {
+    if (current === 0) return null
+    return <span className="text-xs text-muted-foreground">New this month</span>
+  }
+
+  const pct = ((current - previous) / previous) * 100
+
+  if (Math.abs(pct) < 0.01) {
+    return (
+      <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+        <IconMinus className="size-3" />
+        Same as last month
+      </span>
+    )
+  }
+
+  const isIncrease = pct > 0
+  const colorClass = isIncrease ? "text-red-500" : "text-green-500"
+  const Icon = isIncrease ? IconTrendingUp : IconTrendingDown
+
+  return (
+    <span
+      className={`flex items-center gap-0.5 text-xs font-medium ${colorClass}`}
+    >
+      <Icon className="size-3" />
+      {Math.abs(pct).toFixed(1)}% vs last month
+    </span>
+  )
 }
 
 function DashboardSkeleton() {
@@ -231,7 +270,16 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               This Month
             </CardTitle>
-            <IconTrendingUp className="size-4 text-muted-foreground" />
+            <TrendBadge
+              current={
+                dashboard.monthlyTrend[dashboard.monthlyTrend.length - 1]
+                  ?.amount ?? 0
+              }
+              previous={
+                dashboard.monthlyTrend[dashboard.monthlyTrend.length - 2]
+                  ?.amount ?? 0
+              }
+            />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">

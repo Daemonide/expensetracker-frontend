@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Wallet } from "lucide-react"
-import Turnstile from "react-turnstile"
+import { Turnstile } from "react-turnstile"
 
 import { login } from "@/api/auth"
 import { useAuthStore } from "@/lib/auth-store"

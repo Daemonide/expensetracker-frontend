@@ -2,13 +2,26 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "expensetracker-frontend",
   "compatibility_date": "2026-05-27",
+
+  "workers_dev": false,
+  "preview_urls": false,
+
   "observability": {
     "enabled": true
   },
+
   "assets": {
     "not_found_handling": "single-page-application"
   },
+
   "compatibility_flags": [
     "nodejs_compat"
+  ],
+
+  "routes": [
+    {
+      "pattern": "expensetracker.daemonide.dev/*",
+      "custom_domain": true
+    }
   ]
 }

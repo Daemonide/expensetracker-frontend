@@ -20,7 +20,7 @@
 
   "routes": [
     {
-      "pattern": "expensetracker.daemonide.dev/*",
+      "pattern": "expensetracker.daemonide.dev",
       "custom_domain": true
     }
   ]

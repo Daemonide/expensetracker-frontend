@@ -1,6 +1,3 @@
-// Run: npm install framer-motion
-"use client"
-
 import * as React from "react"
 import { motion, type Variants } from "framer-motion"
 import {
@@ -16,6 +13,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  Rectangle,
 } from "recharts"
 import {
   Card,
@@ -102,7 +100,6 @@ function formatINR(amount: number) {
   }).format(amount)
 }
 
-/** Short axis labels: ₹1.2L, ₹45k, ₹800 */
 function formatShortINR(v: number) {
   if (v >= 100_000) return `₹${(v / 100_000).toFixed(1)}L`
   if (v >= 1_000) return `₹${(v / 1_000).toFixed(0)}k`
@@ -131,7 +128,7 @@ function useCountUp(target: number, duration = 900) {
     const timer = setInterval(() => {
       frame++
       const t = frame / steps
-      const eased = 1 - Math.pow(1 - t, 4) // ease-out-quart
+      const eased = 1 - Math.pow(1 - t, 4)
       setValue(Math.round(eased * target))
       if (frame >= steps) {
         setValue(target)
@@ -152,11 +149,11 @@ interface TooltipEntry {
 }
 
 function SharedTooltip({
-  active,
-  payload,
-  label,
-  valueFormatter = formatINR,
-}: {
+                         active,
+                         payload,
+                         label,
+                         valueFormatter = formatINR,
+                       }: {
   active?: boolean
   payload?: ReadonlyArray<TooltipEntry>
   label?: string
@@ -188,9 +185,9 @@ function SharedTooltip({
 // ── Trend badge ───────────────────────────────────────────────────────────────
 
 function TrendBadge({
-  current,
-  previous,
-}: {
+                      current,
+                      previous,
+                    }: {
   current: number
   previous: number
 }) {
@@ -228,14 +225,14 @@ function TrendBadge({
 // ── Summary card ──────────────────────────────────────────────────────────────
 
 function SummaryCard({
-  title,
-  amount,
-  countLabel,
-  icon: Icon,
-  accentClass,
-  iconBgClass,
-  trend,
-}: {
+                       title,
+                       amount,
+                       countLabel,
+                       icon: Icon,
+                       accentClass,
+                       iconBgClass,
+                       trend,
+                     }: {
   title: string
   amount: number
   countLabel: string
@@ -277,8 +274,8 @@ function SummaryCard({
 // ── Status donut legend ───────────────────────────────────────────────────────
 
 function StatusLegend({
-  data,
-}: {
+                        data,
+                      }: {
   data: Array<{
     status: string
     name: string
@@ -306,11 +303,65 @@ function StatusLegend({
   )
 }
 
+// ── Theme-aware grid color ────────────────────────────────────────────────────
+
+function useGridColor() {
+  const [isDark, setIsDark] = React.useState(() =>
+    document.documentElement.classList.contains("dark")
+  )
+  React.useEffect(() => {
+    const observer = new MutationObserver(() =>
+      setIsDark(document.documentElement.classList.contains("dark"))
+    )
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    })
+    return () => observer.disconnect()
+  }, [])
+  return isDark ? "#475569" : "#cbd5e1"
+}
+
+// ── Chart legend helpers ──────────────────────────────────────────────────────
+
+function LineSwatch({
+                      color,
+                      dashed = false,
+                    }: {
+  color: string
+  dashed?: boolean
+}) {
+  return (
+    <span
+      className="inline-block h-0 w-5 shrink-0"
+      style={{
+        borderTopWidth: 2,
+        borderTopStyle: dashed ? "dashed" : "solid",
+        borderTopColor: color,
+      }}
+      aria-hidden
+    />
+  )
+}
+
+function DotSwatch({ color }: { color: string }) {
+  return (
+    <span
+      className="inline-block size-2.5 shrink-0 rounded-sm"
+      style={{ background: color }}
+      aria-hidden
+    />
+  )
+}
+
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-9 w-40" />
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i} className="min-h-[140px] overflow-hidden">
@@ -326,7 +377,6 @@ function DashboardSkeleton() {
           </Card>
         ))}
       </div>
-      {/* Skeleton rows truncated for brevity, standard card skeletons below */}
     </div>
   )
 }
@@ -334,6 +384,8 @@ function DashboardSkeleton() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const gridColor = useGridColor()
+
   const [dashboard, setDashboard] = React.useState<DashboardResponse | null>(
     null
   )
@@ -359,17 +411,20 @@ export default function DashboardPage() {
 
   if (!dashboard) {
     return (
-      <Card>
-        <CardContent className="py-10 text-center">
-          <p className="text-muted-foreground">
-            Failed to load dashboard data.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        </div>
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-muted-foreground">
+              Failed to load dashboard data.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
-
-  // ── Derived data ────────────────────────────────────────────────────────────
 
   const statusData = [...dashboard.statusSummary]
     .sort(
@@ -394,7 +449,7 @@ export default function DashboardPage() {
   const avgMonthly =
     dashboard.monthlyTrend.length > 0
       ? dashboard.monthlyTrend.reduce((s, m) => s + m.amount, 0) /
-        dashboard.monthlyTrend.length
+      dashboard.monthlyTrend.length
       : 0
 
   const lastMonthAmount =
@@ -402,11 +457,12 @@ export default function DashboardPage() {
   const thisMonthAmount =
     dashboard.monthlyTrend[dashboard.monthlyTrend.length - 1]?.amount ?? 0
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   return (
     <div className="space-y-6">
-      {/* ── Summary Cards ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+      </div>
+
       <motion.div
         className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
         variants={stagger}
@@ -450,14 +506,13 @@ export default function DashboardPage() {
         />
       </motion.div>
 
-      {/* ── Row 2: Trend (2/3) + Status donut (1/3) ────────────────────────── */}
       <motion.div
         className="grid grid-cols-1 gap-4 lg:grid-cols-3"
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
       >
-        <Card className="min-w-0 lg:col-span-2">
+        <Card className="min-w-0 shadow-sm lg:col-span-2">
           <CardHeader>
             <CardTitle>Monthly Trend</CardTitle>
             <CardDescription>Spending over the last 6 months</CardDescription>
@@ -480,9 +535,11 @@ export default function DashboardPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="hsl(var(--border))"
-                    vertical={false}
+                    strokeDasharray="4 4"
+                    stroke={gridColor}
+                    strokeOpacity={0.6}
+                    horizontal={false}
+                    vertical={true}
                   />
                   <XAxis
                     dataKey="month"
@@ -501,15 +558,9 @@ export default function DashboardPage() {
                   {avgMonthly > 0 && (
                     <ReferenceLine
                       y={avgMonthly}
-                      stroke="hsl(var(--muted-foreground))"
-                      strokeDasharray="4 4"
-                      strokeOpacity={0.5}
-                      label={{
-                        value: "avg",
-                        position: "insideTopRight",
-                        fontSize: 11,
-                        fill: "hsl(var(--muted-foreground))",
-                      }}
+                      stroke="#22c55e"
+                      strokeDasharray="5 4"
+                      strokeWidth={2}
                     />
                   )}
                   <Tooltip
@@ -539,10 +590,24 @@ export default function DashboardPage() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+            <div className="mt-3 flex items-center justify-center gap-5">
+              <div className="flex items-center gap-1.5">
+                <LineSwatch color="#6366f1" />
+                <span className="text-xs text-muted-foreground">Spent</span>
+              </div>
+              {avgMonthly > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <LineSwatch color="#22c55e" dashed />
+                  <span className="text-xs text-muted-foreground">
+                    Monthly Avg ({formatShortINR(Math.round(avgMonthly))})
+                  </span>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="min-w-0">
+        <Card className="min-w-0 shadow-sm">
           <CardHeader>
             <CardTitle>By Status</CardTitle>
             <CardDescription>Expense count distribution</CardDescription>
@@ -598,14 +663,13 @@ export default function DashboardPage() {
         </Card>
       </motion.div>
 
-      {/* ── Row 3: Recent Expenses + Category Bar ──────────────────────────── */}
       <motion.div
         className="grid grid-cols-1 gap-4 lg:grid-cols-2"
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
       >
-        <Card className="min-w-0">
+        <Card className="min-w-0 shadow-sm">
           <CardHeader>
             <CardTitle>Recent Expenses</CardTitle>
             <CardDescription>
@@ -655,7 +719,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="min-w-0">
+        <Card className="min-w-0 shadow-sm">
           <CardHeader>
             <CardTitle>Spending by Category</CardTitle>
             <CardDescription>Top categories by total amount</CardDescription>
@@ -670,9 +734,11 @@ export default function DashboardPage() {
                   margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
                 >
                   <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="hsl(var(--border))"
+                    strokeDasharray="4 4"
+                    stroke={gridColor}
+                    strokeOpacity={0.6}
                     horizontal={false}
+                    vertical={true}
                   />
                   <XAxis
                     type="number"
@@ -710,9 +776,28 @@ export default function DashboardPage() {
                       )
                     }}
                   />
-                  <Bar dataKey="amount" radius={[0, 5, 5, 0]} />
+                  <Bar
+                    dataKey="amount"
+                    shape={(props) => (
+                      <Rectangle
+                        {...props}
+                        fill={props.payload.fill}
+                        radius={[0, 5, 5, 0]}
+                      />
+                    )}
+                  />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+            <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5">
+              {categoryData.map((item) => (
+                <div key={item.category} className="flex items-center gap-1.5">
+                  <DotSwatch color={item.fill} />
+                  <span className="text-xs text-muted-foreground">
+                    {item.category}
+                  </span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

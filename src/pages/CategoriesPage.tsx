@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 
 import {
@@ -94,19 +92,15 @@ function CategoriesTableSkeleton({ rows = 10 }: { rows?: number }) {
     <>
       {Array.from({ length: rows }).map((_, i) => (
         <TableRow key={i}>
-          {/* ID */}
           <TableCell>
             <Skeleton className="h-4 w-8" />
           </TableCell>
-          {/* Name */}
           <TableCell>
             <Skeleton className="h-4 w-32" />
           </TableCell>
-          {/* Expense count */}
           <TableCell>
             <Skeleton className="h-4 w-6" />
           </TableCell>
-          {/* Actions */}
           <TableCell>
             <Skeleton className="size-8 rounded-md" />
           </TableCell>
@@ -300,12 +294,15 @@ export default function CategoriesPage() {
   })
 
   return (
-    <div className="space-y-4">
-      {/* TOP BAR */}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Categories</h2>
+      </div>
+
       <div className="flex items-center gap-2">
         <Input
-          placeholder="Search... (press Enter)"
-          className="max-w-sm"
+          placeholder="Search categories... (press Enter)"
+          className="max-w-sm bg-background"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => {
@@ -321,8 +318,7 @@ export default function CategoriesPage() {
         </Button>
       </div>
 
-      {/* TABLE */}
-      <div className="overflow-hidden rounded-lg border">
+      <div className="overflow-hidden rounded-lg border bg-background shadow-sm">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((group) => (
@@ -358,7 +354,7 @@ export default function CategoriesPage() {
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center"
+                  className="h-24 text-center text-muted-foreground"
                 >
                   No categories found.
                 </TableCell>
@@ -368,7 +364,6 @@ export default function CategoriesPage() {
         </Table>
       </div>
 
-      {/* PAGINATION */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           {loading ? (
@@ -459,7 +454,6 @@ export default function CategoriesPage() {
         </div>
       </div>
 
-      {/* SHEET */}
       <Sheet open={openSheet} onOpenChange={setOpenSheet}>
         <SheetContent>
           <SheetHeader>
@@ -468,7 +462,7 @@ export default function CategoriesPage() {
             </SheetTitle>
             <SheetDescription>Fill category details below.</SheetDescription>
           </SheetHeader>
-          <div className="m-3 space-y-4">
+          <div className="mt-6 space-y-4">
             <div className="space-y-2">
               <Label>Name</Label>
               <Input
@@ -493,7 +487,6 @@ export default function CategoriesPage() {
         </SheetContent>
       </Sheet>
 
-      {/* DELETE CONFIRMATION */}
       <AlertDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}

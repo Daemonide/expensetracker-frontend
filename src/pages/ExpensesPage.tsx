@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 
 import {
@@ -123,31 +121,24 @@ function ExpensesTableSkeleton({ rows = 10 }: { rows?: number }) {
     <>
       {Array.from({ length: rows }).map((_, i) => (
         <TableRow key={i}>
-          {/* Checkbox */}
           <TableCell>
             <Skeleton className="size-4 rounded" />
           </TableCell>
-          {/* Title */}
           <TableCell>
             <Skeleton className="h-4 w-36" />
           </TableCell>
-          {/* Category */}
           <TableCell>
             <Skeleton className="h-4 w-24" />
           </TableCell>
-          {/* Status badge */}
           <TableCell>
             <Skeleton className="h-6 w-24 rounded-full" />
           </TableCell>
-          {/* Amount */}
           <TableCell>
             <Skeleton className="h-4 w-20" />
           </TableCell>
-          {/* Date */}
           <TableCell>
             <Skeleton className="h-4 w-24" />
           </TableCell>
-          {/* Actions */}
           <TableCell>
             <Skeleton className="size-8 rounded-md" />
           </TableCell>
@@ -168,7 +159,6 @@ export default function ExpensesPage() {
   const [search, setSearch] = React.useState("")
   const [searchInput, setSearchInput] = React.useState("")
 
-  // Filters
   const [statusFilter, setStatusFilter] = React.useState("")
   const [categoryFilter, setCategoryFilter] = React.useState("")
   const [dateFrom, setDateFrom] = React.useState("")
@@ -269,7 +259,6 @@ export default function ExpensesPage() {
     void fetchExpenses()
   }, [fetchExpenses])
 
-  // Reset to page 0 when any filter/search changes
   React.useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }))
   }, [search, statusFilter, categoryFilter, dateFrom, dateTo])
@@ -552,12 +541,15 @@ export default function ExpensesPage() {
   })
 
   return (
-    <div className="w-full space-y-4">
-      {/* TOP BAR */}
+    <div className="w-full space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Expenses</h2>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="Search title... (press Enter)"
-          className="max-w-sm"
+          className="max-w-sm bg-background"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => {
@@ -581,7 +573,7 @@ export default function ExpensesPage() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
+            <Button variant="outline" className="ml-auto bg-background">
               <IconLayoutColumns className="mr-2 size-4" />
               Columns
               <IconChevronDown className="ml-2 size-4" />
@@ -606,9 +598,8 @@ export default function ExpensesPage() {
         </DropdownMenu>
       </div>
 
-      {/* FILTER BAR */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/40 p-3">
-        <IconFilter className="mt-1 size-4 shrink-0 text-muted-foreground" />
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/40 p-3 shadow-sm">
+        <IconFilter className="mb-1.5 size-4 shrink-0 text-muted-foreground" />
 
         <div className="flex flex-col gap-1">
           <Label className="text-xs text-muted-foreground">Status</Label>
@@ -686,8 +677,7 @@ export default function ExpensesPage() {
         )}
       </div>
 
-      {/* TABLE */}
-      <div className="overflow-hidden rounded-lg border">
+      <div className="overflow-hidden rounded-lg border bg-background shadow-sm">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -728,7 +718,7 @@ export default function ExpensesPage() {
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center"
+                  className="h-24 text-center text-muted-foreground"
                 >
                   No expenses found.
                 </TableCell>
@@ -738,7 +728,6 @@ export default function ExpensesPage() {
         </Table>
       </div>
 
-      {/* PAGINATION */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           {loading ? (
@@ -831,7 +820,6 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      {/* SHEET */}
       <Sheet open={openSheet} onOpenChange={setOpenSheet}>
         <SheetContent>
           <SheetHeader>
@@ -874,7 +862,7 @@ export default function ExpensesPage() {
                 onChange={(e) =>
                   setForm({ ...form, categoryId: Number(e.target.value) })
                 }
-                className="w-full rounded-md border border-input bg-background px-3 py-2"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {categories.map((category) => (
                   <option key={category.categoryId} value={category.categoryId}>
@@ -893,7 +881,7 @@ export default function ExpensesPage() {
                     status: e.target.value as ExpenseForm["status"],
                   })
                 }
-                className="w-full rounded-md border border-input bg-background px-3 py-2"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="PENDING">Pending</option>
                 <option value="IN_PROGRESS">In Progress</option>
@@ -917,7 +905,6 @@ export default function ExpensesPage() {
         </SheetContent>
       </Sheet>
 
-      {/* SINGLE DELETE CONFIRMATION */}
       <AlertDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
@@ -947,7 +934,6 @@ export default function ExpensesPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* BULK DELETE CONFIRMATION */}
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

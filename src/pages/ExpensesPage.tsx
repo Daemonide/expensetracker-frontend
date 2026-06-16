@@ -73,6 +73,8 @@ import {
 
 import { type Category, getCategories } from "@/api/categories"
 
+import { AVAILABLE_ICONS } from "@/lib/icons"
+
 type SortField = "title" | "categoryName" | "status" | "amount" | "date"
 
 interface SortState {
@@ -155,14 +157,18 @@ function StatusBadge({ status }: { status: Expense["status"] }) {
 }
 
 function ExpenseCard({
-                       expense,
-                       selected,
-                       onToggleSelect,
-                       onEdit,
-                       onDelete,
-                     }: {
+  expense,
+  selected,
+  IconComponent,
+  colorClass,
+  onToggleSelect,
+  onEdit,
+  onDelete,
+}: {
   expense: Expense
   selected: boolean
+  IconComponent: React.ElementType
+  colorClass: string
   onToggleSelect: (id: number) => void
   onEdit: (expense: Expense) => void
   onDelete: (expense: Expense) => void
@@ -180,13 +186,16 @@ function ExpenseCard({
           className="mt-1"
         />
 
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
-          <IconCreditCard className="size-5 text-muted-foreground" />
+        {/* Global color class and icon dynamically injected here */}
+        <div
+          className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${colorClass}`}
+        >
+          <IconComponent className="size-5" />
         </div>
 
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex items-start justify-between gap-2">
-            <p className="truncate font-medium leading-tight">
+            <p className="truncate leading-tight font-medium">
               {expense.title}
             </p>
             <DropdownMenu>
@@ -237,7 +246,7 @@ function ExpensesCardSkeleton({ count = 6 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <Card key={i}>
           <CardContent className="flex items-start gap-3 p-4">
-            <Skeleton className="size-10 shrink-0 rounded-full" />
+            <Skeleton className="size-10 shrink-0 rounded-xl" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-3 w-1/2" />
@@ -289,20 +298,6 @@ export default function ExpensesPage() {
     pageSize: 12,
   })
 
-  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (
-      e.key === "Enter" &&
-      !e.shiftKey &&
-      form.title.trim() &&
-      form.amount &&
-      form.date &&
-      form.categoryId
-    ) {
-      e.preventDefault()
-      void handleSave()
-    }
-  }
-
   const [openSheet, setOpenSheet] = React.useState(false)
   const [editingExpense, setEditingExpense] = React.useState<Expense | null>(
     null
@@ -318,6 +313,20 @@ export default function ExpensesPage() {
     categoryId: 0,
     status: "PENDING",
   })
+
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (
+      e.key === "Enter" &&
+      !e.shiftKey &&
+      form.title.trim() &&
+      form.amount &&
+      form.date &&
+      form.categoryId
+    ) {
+      e.preventDefault()
+      void handleSave()
+    }
+  }
 
   const fetchExpenses = React.useCallback(
     async (pageIndex: number, append: boolean) => {
@@ -341,7 +350,9 @@ export default function ExpensesPage() {
         })
 
         setExpenses((prev) =>
-          append ? [...prev, ...(response.content ?? [])] : response.content ?? []
+          append
+            ? [...prev, ...(response.content ?? [])]
+            : (response.content ?? [])
         )
         setTotalPages(response.totalPages ?? 1)
         setTotalElements(response.totalElements ?? 0)
@@ -410,14 +421,12 @@ export default function ExpensesPage() {
     setSorting((prev) => ({ ...prev, desc: !prev.desc }))
   }
 
-
   const groups = React.useMemo<ExpenseGroup[]>(() => {
     const result: ExpenseGroup[] = []
     for (const expense of expenses) {
       let key: string
       let label: string
 
-      // Determine grouping key and label based on the active sort field
       if (sorting.id === "categoryName") {
         key = `cat-${expense.categoryId}`
         label = expense.categoryName
@@ -541,7 +550,9 @@ export default function ExpensesPage() {
     const ids = Array.from(selectedIds)
     try {
       await Promise.all(ids.map((id) => deleteExpense(id)))
-      toast.success(`${ids.length} expense${ids.length !== 1 ? "s" : ""} deleted`)
+      toast.success(
+        `${ids.length} expense${ids.length !== 1 ? "s" : ""} deleted`
+      )
       setSelectedIds(new Set())
       await refetch()
     } catch (err) {
@@ -733,7 +744,6 @@ export default function ExpensesPage() {
 
             return (
               <div key={group.key} className="space-y-3">
-                {/* Updated Group Header */}
                 <div className="flex items-center gap-3">
                   <Checkbox
                     checked={
@@ -755,16 +765,29 @@ export default function ExpensesPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {group.items.map((expense) => (
-                    <ExpenseCard
-                      key={expense.expenseID}
-                      expense={expense}
-                      selected={selectedIds.has(expense.expenseID)}
-                      onToggleSelect={toggleSelect}
-                      onEdit={openEditSheet}
-                      onDelete={(e) => setDeleteTarget(e)}
-                    />
-                  ))}
+                  {group.items.map((expense) => {
+                    const category = categories.find(
+                      (c) => c.categoryId === expense.categoryId
+                    )
+                    const iconId = category?.iconName || "default"
+                    // Get the full global config object for this specific icon
+                    const iconConfig =
+                      AVAILABLE_ICONS.find((i) => i.id === iconId) ||
+                      AVAILABLE_ICONS[AVAILABLE_ICONS.length - 1]
+
+                    return (
+                      <ExpenseCard
+                        key={expense.expenseID}
+                        expense={expense}
+                        selected={selectedIds.has(expense.expenseID)}
+                        IconComponent={iconConfig.icon}
+                        colorClass={iconConfig.colorClass} // Pass down the specific color mapping
+                        onToggleSelect={toggleSelect}
+                        onEdit={openEditSheet}
+                        onDelete={(e) => setDeleteTarget(e)}
+                      />
+                    )
+                  })}
                 </div>
               </div>
             )

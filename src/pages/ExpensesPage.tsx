@@ -632,15 +632,19 @@ export default function ExpensesPage() {
               setStatusFilter(value === "ALL" ? "" : value)
             }
           >
-            <SelectTrigger className="h-8 w-36 bg-background">
+            <SelectTrigger className="h-8 w-40 bg-background">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All statuses</SelectItem>
-              <SelectItem value="DONE">Done</SelectItem>
-              <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="CANCELLED">Cancelled</SelectItem>
+              {Object.entries(STATUS_CONFIG).map(([statusKey, config]) => (
+                <SelectItem key={statusKey} value={statusKey}>
+                  <div className="flex items-center gap-2">
+                    {config.icon}
+                    <span>{config.label}</span>
+                  </div>
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -653,16 +657,31 @@ export default function ExpensesPage() {
               setCategoryFilter(value === "ALL" ? "" : value)
             }
           >
-            <SelectTrigger className="h-8 w-40 bg-background">
+            <SelectTrigger className="h-8 w-48 bg-background">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All categories</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c.categoryId} value={String(c.categoryId)}>
-                  {c.name}
-                </SelectItem>
-              ))}
+              {categories.map((c) => {
+                const iconId = c.iconName || "default"
+                const iconConfig =
+                  AVAILABLE_ICONS.find((i) => i.id === iconId) ||
+                  AVAILABLE_ICONS[AVAILABLE_ICONS.length - 1]
+                const IconComponent = iconConfig.icon
+
+                return (
+                  <SelectItem key={c.categoryId} value={String(c.categoryId)}>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`flex size-5 shrink-0 items-center justify-center rounded-md ${iconConfig.colorClass}`}
+                      >
+                        <IconComponent className="size-3" />
+                      </div>
+                      <span className="truncate">{c.name}</span>
+                    </div>
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -742,6 +761,37 @@ export default function ExpensesPage() {
               selectedIds.has(id)
             )
 
+            let GroupIcon: React.ReactNode = null
+
+            if (sorting.id === "categoryName" && group.items.length > 0) {
+              const targetItem = group.items[0]
+              const category = categories.find(
+                (c) => c.categoryId === targetItem.categoryId
+              )
+              const iconId = category?.iconName || "default"
+              const iconConfig =
+                AVAILABLE_ICONS.find((i) => i.id === iconId) ||
+                AVAILABLE_ICONS[AVAILABLE_ICONS.length - 1]
+              const IconComponent = iconConfig.icon
+
+              GroupIcon = (
+                <div
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-md ${iconConfig.colorClass}`}
+                >
+                  <IconComponent className="size-3.5" />
+                </div>
+              )
+            } else if (sorting.id === "status" && group.items.length > 0) {
+              const targetItem = group.items[0]
+              const config = STATUS_CONFIG[targetItem.status]
+
+              if (config && React.isValidElement(config.icon)) {
+                GroupIcon = React.cloneElement(config.icon, {
+                  className: "size-4.5 shrink-0",
+                } as React.HTMLAttributes<SVGElement>)
+              }
+            }
+
             return (
               <div key={group.key} className="space-y-3">
                 <div className="flex items-center gap-3">
@@ -756,7 +806,12 @@ export default function ExpensesPage() {
                     onCheckedChange={() => toggleGroupSelect(group)}
                     aria-label={`Select all in ${group.label}`}
                   />
-                  <h3 className="text-base font-semibold">{group.label}</h3>
+
+                  <div className="flex items-center gap-2">
+                    {GroupIcon}
+                    <h3 className="text-base font-semibold">{group.label}</h3>
+                  </div>
+
                   <div className="h-px flex-1 bg-border" />
                   <span className="text-xs text-muted-foreground">
                     {group.items.length} expense
@@ -770,7 +825,6 @@ export default function ExpensesPage() {
                       (c) => c.categoryId === expense.categoryId
                     )
                     const iconId = category?.iconName || "default"
-                    // Get the full global config object for this specific icon
                     const iconConfig =
                       AVAILABLE_ICONS.find((i) => i.id === iconId) ||
                       AVAILABLE_ICONS[AVAILABLE_ICONS.length - 1]
@@ -781,7 +835,7 @@ export default function ExpensesPage() {
                         expense={expense}
                         selected={selectedIds.has(expense.expenseID)}
                         IconComponent={iconConfig.icon}
-                        colorClass={iconConfig.colorClass} // Pass down the specific color mapping
+                        colorClass={iconConfig.colorClass}
                         onToggleSelect={toggleSelect}
                         onEdit={openEditSheet}
                         onDelete={(e) => setDeleteTarget(e)}
@@ -850,10 +904,11 @@ export default function ExpensesPage() {
               <Label>Amount</Label>
               <Input
                 type="number"
-                value={form.amount}
-                onChange={(e) =>
-                  setForm({ ...form, amount: Number(e.target.value) })
-                }
+                value={form.amount === 0 ? "" : form.amount}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  setForm({ ...form, amount: raw === "" ? 0 : Number(raw) })
+                }}
               />
             </div>
             <div className="space-y-2">
@@ -864,40 +919,74 @@ export default function ExpensesPage() {
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
               />
             </div>
+
+            {/* UPDATED CATEGORY SELECT */}
             <div className="space-y-2">
               <Label>Category</Label>
-              <select
-                value={form.categoryId}
-                onChange={(e) =>
-                  setForm({ ...form, categoryId: Number(e.target.value) })
+              <Select
+                value={String(form.categoryId)}
+                onValueChange={(value) =>
+                  setForm({ ...form, categoryId: Number(value) })
                 }
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {categories.map((category) => (
-                  <option key={category.categoryId} value={category.categoryId}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full bg-background">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => {
+                    const iconId = category.iconName || "default"
+                    const iconConfig =
+                      AVAILABLE_ICONS.find((i) => i.id === iconId) ||
+                      AVAILABLE_ICONS[AVAILABLE_ICONS.length - 1]
+                    const IconComponent = iconConfig.icon
+
+                    return (
+                      <SelectItem
+                        key={category.categoryId}
+                        value={String(category.categoryId)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`flex size-6 shrink-0 items-center justify-center rounded-md ${iconConfig.colorClass}`}
+                          >
+                            <IconComponent className="size-3.5" />
+                          </div>
+                          <span className="truncate">{category.name}</span>
+                        </div>
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
             </div>
+
             <div className="space-y-2">
               <Label>Status</Label>
-              <select
+              <Select
                 value={form.status}
-                onChange={(e) =>
+                onValueChange={(value) =>
                   setForm({
                     ...form,
-                    status: e.target.value as ExpenseForm["status"],
+                    status: value as ExpenseForm["status"],
                   })
                 }
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="PENDING">Pending</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="DONE">Done</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
+                <SelectTrigger className="w-full bg-background">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(STATUS_CONFIG).map(([statusKey, config]) => (
+                    <SelectItem key={statusKey} value={statusKey}>
+                      <div className="flex items-center gap-2">
+                        {config.icon}
+                        <span>{config.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
             <Button
               className="w-full"
               onClick={() => void handleSave()}

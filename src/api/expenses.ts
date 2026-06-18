@@ -10,6 +10,8 @@ export interface Expense {
   categoryId: number
   categoryName: string
   status: ExpenseStatus
+  financialAccountId: number
+  financialAccountName: string
 }
 
 export interface ExpenseForm {
@@ -18,6 +20,7 @@ export interface ExpenseForm {
   date: string
   categoryId: number
   status: ExpenseStatus
+  financialAccountId: number
 }
 
 export interface ExpenseResponse {
@@ -39,6 +42,7 @@ export interface ExpenseQueryParams {
   search?: string
   status?: string
   categoryId?: number
+  financialAccountId?: number
   dateFrom?: string
   dateTo?: string
 }
@@ -54,6 +58,7 @@ export const getExpenses = async (
     search = "",
     status,
     categoryId,
+    financialAccountId,
     dateFrom,
     dateTo,
   } = params
@@ -67,6 +72,7 @@ export const getExpenses = async (
       ...(search.trim() && { search: search.trim() }),
       ...(status && { status }),
       ...(categoryId && { categoryId }),
+      ...(financialAccountId && { financialAccountId }),
       ...(dateFrom && { dateFrom }),
       ...(dateTo && { dateTo }),
     },

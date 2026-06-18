@@ -31,6 +31,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
 import { useAuthStore } from "@/lib/auth-store.ts"
 import { logout } from "@/api/auth.ts"
+import { IconBuildingBank } from "@tabler/icons-react"
 
 export function AppSidebar() {
   const navigate = useNavigate()
@@ -106,6 +107,14 @@ export function AppSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild>
+            <Link to="/accounts">
+              <IconBuildingBank />
+              <span>Accounts</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
         <SidebarGroup />
       </SidebarContent>
 
@@ -150,7 +159,7 @@ export function AppSidebar() {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem asChild>
-                  <Link to="/account">
+                  <Link to="/user">
                     <BadgeCheck />
                     <span>Account</span>
                   </Link>

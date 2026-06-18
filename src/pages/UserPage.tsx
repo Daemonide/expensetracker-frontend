@@ -49,7 +49,7 @@ const PASSWORD_CRITERIA = [
   },
 ]
 
-export default function AccountPage() {
+export default function UserPage() {
   const currentUser = useAuthStore((s) => s.user)
   const refreshUser = useAuthStore((s) => s.refreshUser)
 
@@ -84,7 +84,6 @@ export default function AccountPage() {
       refreshUser()
       toast.success("Account updated")
     } catch (err: unknown) {
-      // Replaced 'any' with the ApiError interface
       const msg =
         (err as ApiError)?.response?.data?.message ?? "Failed to update account"
       toast.error(msg)

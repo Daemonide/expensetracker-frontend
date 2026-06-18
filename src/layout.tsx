@@ -17,6 +17,8 @@ const PAGE_NAMES: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/expenses": "Expenses",
   "/categories": "Categories",
+  "/user": "Edit User",
+  "/accounts": "Accounts",
 }
 
 export default function Layout() {

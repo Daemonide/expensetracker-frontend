@@ -6,8 +6,9 @@ import CategoriesPage from "@/pages/CategoriesPage"
 import LoginPage from "@/pages/LoginPage"
 import RegisterPage from "@/pages/RegisterPage"
 import PrivateRoute from "@/components/PrivateRoute"
-import AccountPage from "@/pages/AccountPage.tsx"
-import NotFoundPage from "@/pages/NotFoundPage.tsx"
+import UserPage from "@/pages/UserPage"
+import AccountsPage from "@/pages/AccountsPage"
+import NotFoundPage from "@/pages/NotFoundPage"
 
 function App() {
   return (
@@ -42,10 +43,18 @@ function App() {
           }
         />
         <Route
-          path="/account"
+          path="/user"
           element={
             <PrivateRoute>
-              <AccountPage />
+              <UserPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/accounts"
+          element={
+            <PrivateRoute>
+              <AccountsPage />
             </PrivateRoute>
           }
         />

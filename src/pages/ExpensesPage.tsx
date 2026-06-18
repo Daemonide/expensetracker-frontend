@@ -58,6 +58,7 @@ import {
   IconFilterOff,
   IconSortAscending,
   IconSortDescending,
+  IconWallet,
 } from "@tabler/icons-react"
 
 import { toast } from "sonner"
@@ -72,10 +73,21 @@ import {
 } from "@/api/expenses"
 
 import { type Category, getCategories } from "@/api/categories"
+import {
+  type FinancialAccount,
+  getFinancialAccounts,
+} from "@/api/financial-accounts"
 
 import { AVAILABLE_ICONS } from "@/lib/icons"
+import { ACCOUNT_TYPE_CONFIG } from "@/lib/account-types"
 
-type SortField = "title" | "categoryName" | "status" | "amount" | "date"
+type SortField =
+  | "title"
+  | "categoryName"
+  | "status"
+  | "amount"
+  | "date"
+  | "financialAccountName"
 
 interface SortState {
   id: SortField
@@ -94,6 +106,7 @@ const SORT_FIELD_MAP: Record<SortField, string> = {
   status: "status",
   date: "date",
   categoryName: "category.name",
+  financialAccountName: "financialAccount.name",
 }
 
 const SORT_LABELS: Record<SortField, string> = {
@@ -102,6 +115,7 @@ const SORT_LABELS: Record<SortField, string> = {
   categoryName: "Category",
   status: "Status",
   amount: "Amount",
+  financialAccountName: "Account",
 }
 
 const currencyFormatter = new Intl.NumberFormat("en-IN", {
@@ -127,23 +141,23 @@ const STATUS_CONFIG: Record<
   Expense["status"],
   { icon: React.ReactNode; label: string }
 > = {
-  DONE: {
-    icon: <IconCircleCheckFilled className="size-3.5 text-green-500" />,
-    label: "Done",
-  },
-  IN_PROGRESS: {
-    icon: <IconLoader className="size-3.5 animate-spin text-blue-500" />,
-    label: "In Progress",
-  },
-  PENDING: {
-    icon: <IconClock className="size-3.5 text-yellow-500" />,
-    label: "Pending",
-  },
-  CANCELLED: {
-    icon: <IconX className="size-3.5 text-red-500" />,
-    label: "Cancelled",
-  },
-}
+    DONE: {
+      icon: <IconCircleCheckFilled className="size-3.5 text-green-500" />,
+      label: "Done",
+    },
+    IN_PROGRESS: {
+      icon: <IconLoader className="size-3.5 animate-spin text-blue-500" />,
+      label: "In Progress",
+    },
+    PENDING: {
+      icon: <IconClock className="size-3.5 text-yellow-500" />,
+      label: "Pending",
+    },
+    CANCELLED: {
+      icon: <IconX className="size-3.5 text-red-500" />,
+      label: "Cancelled",
+    },
+  }
 
 function StatusBadge({ status }: { status: Expense["status"] }) {
   const config = STATUS_CONFIG[status]
@@ -157,29 +171,36 @@ function StatusBadge({ status }: { status: Expense["status"] }) {
 }
 
 function ExpenseCard({
-  expense,
-  selected,
-  IconComponent,
-  colorClass,
-  onToggleSelect,
-  onEdit,
-  onDelete,
-}: {
+                       expense,
+                       selected,
+                       IconComponent,
+                       colorClass,
+                       AccountIcon,
+                       accountBandClass,
+                       onToggleSelect,
+                       onEdit,
+                       onDelete,
+                     }: {
   expense: Expense
   selected: boolean
   IconComponent: React.ElementType
   colorClass: string
+  AccountIcon: React.ElementType
+  accountBandClass: string
   onToggleSelect: (id: number) => void
   onEdit: (expense: Expense) => void
   onDelete: (expense: Expense) => void
 }) {
   return (
     <Card
-      className={`relative transition-shadow hover:shadow-md ${
+      className={`relative overflow-hidden transition-shadow hover:shadow-md ${
         selected ? "ring-2 ring-primary" : ""
       }`}
     >
-      <CardContent className="flex items-start gap-3 p-4">
+      {/* Vertical band colored by the linked account's type */}
+      <div className={`absolute inset-y-0 left-0 w-1.5 ${accountBandClass}`} />
+
+      <CardContent className="flex items-start gap-3 p-4 pl-5">
         <Checkbox
           checked={selected}
           onCheckedChange={() => onToggleSelect(expense.expenseID)}
@@ -228,6 +249,11 @@ function ExpenseCard({
             {expense.categoryName} · {formatDateLabel(expense.date)}
           </p>
 
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <AccountIcon className="size-3.5" />
+            <span className="truncate">{expense.financialAccountName}</span>
+          </div>
+
           <div className="flex items-center justify-between pt-1">
             <StatusBadge status={expense.status} />
             <span className="font-semibold">
@@ -265,6 +291,9 @@ function ExpensesCardSkeleton({ count = 6 }: { count?: number }) {
 export default function ExpensesPage() {
   const [expenses, setExpenses] = React.useState<Expense[]>([])
   const [categories, setCategories] = React.useState<Category[]>([])
+  const [financialAccounts, setFinancialAccounts] = React.useState<
+    FinancialAccount[]
+  >([])
   const [loading, setLoading] = React.useState(true)
   const [loadingMore, setLoadingMore] = React.useState(false)
 
@@ -276,12 +305,14 @@ export default function ExpensesPage() {
 
   const [statusFilter, setStatusFilter] = React.useState("")
   const [categoryFilter, setCategoryFilter] = React.useState("")
+  const [accountFilter, setAccountFilter] = React.useState("")
   const [dateFrom, setDateFrom] = React.useState("")
   const [dateTo, setDateTo] = React.useState("")
 
   const hasActiveFilters = !!(
     statusFilter ||
     categoryFilter ||
+    accountFilter ||
     dateFrom ||
     dateTo ||
     search
@@ -312,6 +343,7 @@ export default function ExpensesPage() {
     date: "",
     categoryId: 0,
     status: "PENDING",
+    financialAccountId: 0,
   })
 
   const handleFormKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -321,7 +353,8 @@ export default function ExpensesPage() {
       form.title.trim() &&
       form.amount &&
       form.date &&
-      form.categoryId
+      form.categoryId &&
+      form.financialAccountId
     ) {
       e.preventDefault()
       void handleSave()
@@ -345,6 +378,9 @@ export default function ExpensesPage() {
           search,
           status: statusFilter || undefined,
           categoryId: categoryFilter ? Number(categoryFilter) : undefined,
+          financialAccountId: accountFilter
+            ? Number(accountFilter)
+            : undefined,
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
         })
@@ -373,6 +409,7 @@ export default function ExpensesPage() {
       search,
       statusFilter,
       categoryFilter,
+      accountFilter,
       dateFrom,
       dateTo,
     ]
@@ -395,6 +432,19 @@ export default function ExpensesPage() {
     void fetchCategories()
   }, [])
 
+  React.useEffect(() => {
+    const fetchAccounts = async () => {
+      try {
+        const data = await getFinancialAccounts()
+        setFinancialAccounts(data)
+      } catch (err) {
+        console.error(err)
+        toast.error("Failed to fetch accounts")
+      }
+    }
+    void fetchAccounts()
+  }, [])
+
   const refetch = () => fetchExpenses(0, false)
 
   const handleLoadMore = () => {
@@ -408,6 +458,7 @@ export default function ExpensesPage() {
     setSearchInput("")
     setStatusFilter("")
     setCategoryFilter("")
+    setAccountFilter("")
     setDateFrom("")
     setDateTo("")
   }
@@ -430,6 +481,9 @@ export default function ExpensesPage() {
       if (sorting.id === "categoryName") {
         key = `cat-${expense.categoryId}`
         label = expense.categoryName
+      } else if (sorting.id === "financialAccountName") {
+        key = `acct-${expense.financialAccountId}`
+        label = expense.financialAccountName
       } else if (sorting.id === "status") {
         key = `status-${expense.status}`
         label = STATUS_CONFIG[expense.status]?.label ?? expense.status
@@ -495,6 +549,7 @@ export default function ExpensesPage() {
       date: "",
       categoryId: categories[0]?.categoryId ?? 0,
       status: "PENDING",
+      financialAccountId: financialAccounts[0]?.id ?? 0,
     })
     setOpenSheet(true)
   }
@@ -507,6 +562,7 @@ export default function ExpensesPage() {
       date: expense.date.split("T")[0],
       categoryId: expense.categoryId,
       status: expense.status,
+      financialAccountId: expense.financialAccountId,
     })
     setOpenSheet(true)
   }
@@ -687,6 +743,40 @@ export default function ExpensesPage() {
         </div>
 
         <div className="flex flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">Account</Label>
+          <Select
+            value={accountFilter || "ALL"}
+            onValueChange={(value) =>
+              setAccountFilter(value === "ALL" ? "" : value)
+            }
+          >
+            <SelectTrigger className="h-8 w-44 bg-background">
+              <SelectValue placeholder="All accounts" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All accounts</SelectItem>
+              {financialAccounts.map((account) => {
+                const config = ACCOUNT_TYPE_CONFIG[account.type]
+                const AccountIcon = config.icon
+
+                return (
+                  <SelectItem key={account.id} value={String(account.id)}>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`flex size-5 shrink-0 items-center justify-center rounded-md ${config.chipClass}`}
+                      >
+                        <AccountIcon className="size-3" />
+                      </div>
+                      <span className="truncate">{account.name}</span>
+                    </div>
+                  </SelectItem>
+                )
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
           <Label className="text-xs text-muted-foreground">From</Label>
           <Input
             type="date"
@@ -781,6 +871,26 @@ export default function ExpensesPage() {
                   <IconComponent className="size-3.5" />
                 </div>
               )
+            } else if (
+              sorting.id === "financialAccountName" &&
+              group.items.length > 0
+            ) {
+              const targetItem = group.items[0]
+              const account = financialAccounts.find(
+                (a) => a.id === targetItem.financialAccountId
+              )
+              const config = account ? ACCOUNT_TYPE_CONFIG[account.type] : null
+              const Icon = config?.icon ?? IconWallet
+
+              GroupIcon = (
+                <div
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-md ${
+                    config?.chipClass ?? "bg-muted"
+                  }`}
+                >
+                  <Icon className="size-3.5" />
+                </div>
+              )
             } else if (sorting.id === "status" && group.items.length > 0) {
               const targetItem = group.items[0]
               const config = STATUS_CONFIG[targetItem.status]
@@ -829,6 +939,13 @@ export default function ExpensesPage() {
                       AVAILABLE_ICONS.find((i) => i.id === iconId) ||
                       AVAILABLE_ICONS[AVAILABLE_ICONS.length - 1]
 
+                    const account = financialAccounts.find(
+                      (a) => a.id === expense.financialAccountId
+                    )
+                    const accountConfig = account
+                      ? ACCOUNT_TYPE_CONFIG[account.type]
+                      : null
+
                     return (
                       <ExpenseCard
                         key={expense.expenseID}
@@ -836,6 +953,10 @@ export default function ExpensesPage() {
                         selected={selectedIds.has(expense.expenseID)}
                         IconComponent={iconConfig.icon}
                         colorClass={iconConfig.colorClass}
+                        AccountIcon={accountConfig?.icon ?? IconWallet}
+                        accountBandClass={
+                          accountConfig?.bandClass ?? "bg-muted-foreground/30"
+                        }
                         onToggleSelect={toggleSelect}
                         onEdit={openEditSheet}
                         onDelete={(e) => setDeleteTarget(e)}
@@ -920,7 +1041,6 @@ export default function ExpensesPage() {
               />
             </div>
 
-            {/* UPDATED CATEGORY SELECT */}
             <div className="space-y-2">
               <Label>Category</Label>
               <Select
@@ -961,6 +1081,27 @@ export default function ExpensesPage() {
             </div>
 
             <div className="space-y-2">
+              <Label>Account</Label>
+              <Select
+                value={String(form.financialAccountId)}
+                onValueChange={(value) =>
+                  setForm({ ...form, financialAccountId: Number(value) })
+                }
+              >
+                <SelectTrigger className="w-full bg-background">
+                  <SelectValue placeholder="Select an account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {financialAccounts.map((account) => {
+                    const config = ACCOUNT_TYPE_CONFIG[account.type]
+                    const AccountIcon = config.icon
+
+                    return (
+                      <SelectItem key={account.id} value={String(account.id)}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`flex size-6 shrink-0 items-center justify-center rounded-md ${config.chipClass}`} > <AccountIcon className="size-3.5" /> </div> <span className="truncate">{account.name}</span> </div> </SelectItem> ) })} </SelectContent> </Select> </div>
+            <div className="space-y-2">
               <Label>Status</Label>
               <Select
                 value={form.status}
@@ -994,7 +1135,8 @@ export default function ExpensesPage() {
                 !form.title.trim() ||
                 !form.amount ||
                 !form.date ||
-                !form.categoryId
+                !form.categoryId ||
+                !form.financialAccountId
               }
             >
               {editingExpense ? "Update Expense" : "Create Expense"}
@@ -1013,8 +1155,8 @@ export default function ExpensesPage() {
             <AlertDialogDescription>
               This will permanently delete{" "}
               <span className="font-medium text-foreground">
-                "{deleteTarget?.title}"
-              </span>
+            "{deleteTarget?.title}"
+          </span>
               . This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1055,5 +1197,4 @@ export default function ExpensesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
-}
+  ) }

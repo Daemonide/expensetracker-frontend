@@ -6,6 +6,13 @@ export interface MonthlyTrend {
   amount: number
 }
 
+export interface AccountMonthlyTrend {
+  month: string
+  accountId: number
+  accountName: string
+  amount: number
+}
+
 export interface CategorySummary {
   category: string
   amount: number
@@ -29,6 +36,7 @@ export interface DashboardResponse {
   completedExpenses: number
 
   monthlyTrend: MonthlyTrend[]
+  accountMonthlyTrend: AccountMonthlyTrend[]
   categorySummary: CategorySummary[]
   statusSummary: StatusSummary[]
 

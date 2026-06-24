@@ -141,23 +141,23 @@ const STATUS_CONFIG: Record<
   Expense["status"],
   { icon: React.ReactNode; label: string }
 > = {
-    DONE: {
-      icon: <IconCircleCheckFilled className="size-3.5 text-green-500" />,
-      label: "Done",
-    },
-    IN_PROGRESS: {
-      icon: <IconLoader className="size-3.5 animate-spin text-blue-500" />,
-      label: "In Progress",
-    },
-    PENDING: {
-      icon: <IconClock className="size-3.5 text-yellow-500" />,
-      label: "Pending",
-    },
-    CANCELLED: {
-      icon: <IconX className="size-3.5 text-red-500" />,
-      label: "Cancelled",
-    },
-  }
+  DONE: {
+    icon: <IconCircleCheckFilled className="size-3.5 text-green-500" />,
+    label: "Done",
+  },
+  IN_PROGRESS: {
+    icon: <IconLoader className="size-3.5 animate-spin text-blue-500" />,
+    label: "In Progress",
+  },
+  PENDING: {
+    icon: <IconClock className="size-3.5 text-yellow-500" />,
+    label: "Pending",
+  },
+  CANCELLED: {
+    icon: <IconX className="size-3.5 text-red-500" />,
+    label: "Cancelled",
+  },
+}
 
 function StatusBadge({ status }: { status: Expense["status"] }) {
   const config = STATUS_CONFIG[status]
@@ -171,16 +171,16 @@ function StatusBadge({ status }: { status: Expense["status"] }) {
 }
 
 function ExpenseCard({
-                       expense,
-                       selected,
-                       IconComponent,
-                       colorClass,
-                       AccountIcon,
-                       accountBandClass,
-                       onToggleSelect,
-                       onEdit,
-                       onDelete,
-                     }: {
+  expense,
+  selected,
+  IconComponent,
+  colorClass,
+  AccountIcon,
+  accountBandClass,
+  onToggleSelect,
+  onEdit,
+  onDelete,
+}: {
   expense: Expense
   selected: boolean
   IconComponent: React.ElementType
@@ -197,7 +197,6 @@ function ExpenseCard({
         selected ? "ring-2 ring-primary" : ""
       }`}
     >
-      {/* Vertical band colored by the linked account's type */}
       <div className={`absolute inset-y-0 left-0 w-1.5 ${accountBandClass}`} />
 
       <CardContent className="flex items-start gap-3 p-4 pl-5">
@@ -207,7 +206,6 @@ function ExpenseCard({
           className="mt-1"
         />
 
-        {/* Global color class and icon dynamically injected here */}
         <div
           className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${colorClass}`}
         >
@@ -378,9 +376,7 @@ export default function ExpensesPage() {
           search,
           status: statusFilter || undefined,
           categoryId: categoryFilter ? Number(categoryFilter) : undefined,
-          financialAccountId: accountFilter
-            ? Number(accountFilter)
-            : undefined,
+          financialAccountId: accountFilter ? Number(accountFilter) : undefined,
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
         })
@@ -625,10 +621,10 @@ export default function ExpensesPage() {
         <h2 className="text-3xl font-bold tracking-tight">Expenses</h2>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Input
           placeholder="Search title... (press Enter)"
-          className="max-w-sm bg-background"
+          className="w-full bg-background sm:max-w-sm"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => {
@@ -636,21 +632,29 @@ export default function ExpensesPage() {
           }}
         />
 
-        {selectedIds.size > 0 && (
-          <Button variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
-            Delete Selected ({selectedIds.size})
+        <div className="flex w-full gap-2 sm:w-auto">
+          {selectedIds.size > 0 && (
+            <Button
+              variant="destructive"
+              className="flex-1 sm:flex-none"
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              Delete ({selectedIds.size})
+            </Button>
+          )}
+
+          <Button onClick={openAddSheet} className="flex-1 sm:flex-none">
+            <IconPlus className="mr-2 size-4" />
+            Add Expense
           </Button>
-        )}
+        </div>
 
-        <Button onClick={openAddSheet}>
-          <IconPlus className="mr-2 size-4" />
-          Add Expense
-        </Button>
-
-        <div className="ml-auto flex items-center gap-2">
-          <Label className="text-sm text-muted-foreground">Sort by</Label>
+        <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+          <Label className="text-sm whitespace-nowrap text-muted-foreground">
+            Sort by
+          </Label>
           <Select value={sorting.id} onValueChange={handleSortFieldChange}>
-            <SelectTrigger className="h-9 w-36 bg-background">
+            <SelectTrigger className="h-9 flex-1 bg-background sm:w-36">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -664,7 +668,7 @@ export default function ExpensesPage() {
           <Button
             variant="outline"
             size="icon"
-            className="bg-background"
+            className="shrink-0 bg-background"
             onClick={toggleSortDirection}
             title={sorting.desc ? "Descending" : "Ascending"}
           >
@@ -677,10 +681,13 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/40 p-3 shadow-sm">
-        <IconFilter className="mb-1.5 size-4 shrink-0 text-muted-foreground" />
+      <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/40 p-3 shadow-sm sm:flex sm:flex-wrap sm:items-end">
+        <div className="col-span-2 flex items-center gap-2 sm:col-span-1 sm:mb-1.5">
+          <IconFilter className="size-4 shrink-0 text-muted-foreground" />
+          <span className="text-sm font-medium sm:hidden">Filters</span>
+        </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="col-span-2 flex flex-col gap-1 sm:col-span-1">
           <Label className="text-xs text-muted-foreground">Status</Label>
           <Select
             value={statusFilter || "ALL"}
@@ -688,7 +695,7 @@ export default function ExpensesPage() {
               setStatusFilter(value === "ALL" ? "" : value)
             }
           >
-            <SelectTrigger className="h-8 w-40 bg-background">
+            <SelectTrigger className="h-8 w-full bg-background sm:w-40">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -705,7 +712,7 @@ export default function ExpensesPage() {
           </Select>
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="col-span-2 flex flex-col gap-1 sm:col-span-1">
           <Label className="text-xs text-muted-foreground">Category</Label>
           <Select
             value={categoryFilter || "ALL"}
@@ -713,7 +720,7 @@ export default function ExpensesPage() {
               setCategoryFilter(value === "ALL" ? "" : value)
             }
           >
-            <SelectTrigger className="h-8 w-48 bg-background">
+            <SelectTrigger className="h-8 w-full bg-background sm:w-48">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
@@ -742,7 +749,7 @@ export default function ExpensesPage() {
           </Select>
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="col-span-2 flex flex-col gap-1 sm:col-span-1">
           <Label className="text-xs text-muted-foreground">Account</Label>
           <Select
             value={accountFilter || "ALL"}
@@ -750,7 +757,7 @@ export default function ExpensesPage() {
               setAccountFilter(value === "ALL" ? "" : value)
             }
           >
-            <SelectTrigger className="h-8 w-44 bg-background">
+            <SelectTrigger className="h-8 w-full bg-background sm:w-44">
               <SelectValue placeholder="All accounts" />
             </SelectTrigger>
             <SelectContent>
@@ -776,21 +783,21 @@ export default function ExpensesPage() {
           </Select>
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="col-span-1 flex flex-col gap-1">
           <Label className="text-xs text-muted-foreground">From</Label>
           <Input
             type="date"
-            className="h-8 w-36 bg-background"
+            className="h-8 w-full bg-background sm:w-36"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
           />
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="col-span-1 flex flex-col gap-1">
           <Label className="text-xs text-muted-foreground">To</Label>
           <Input
             type="date"
-            className="h-8 w-36 bg-background"
+            className="h-8 w-full bg-background sm:w-36"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
           />
@@ -800,7 +807,7 @@ export default function ExpensesPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1 text-muted-foreground"
+            className="col-span-2 h-8 gap-1 text-muted-foreground sm:col-span-1"
             onClick={clearFilters}
           >
             <IconFilterOff className="size-4" />
@@ -1100,7 +1107,19 @@ export default function ExpensesPage() {
                       <SelectItem key={account.id} value={String(account.id)}>
                         <div className="flex items-center gap-2">
                           <div
-                            className={`flex size-6 shrink-0 items-center justify-center rounded-md ${config.chipClass}`} > <AccountIcon className="size-3.5" /> </div> <span className="truncate">{account.name}</span> </div> </SelectItem> ) })} </SelectContent> </Select> </div>
+                            className={`flex size-6 shrink-0 items-center justify-center rounded-md ${config.chipClass}`}
+                          >
+                            {" "}
+                            <AccountIcon className="size-3.5" />{" "}
+                          </div>{" "}
+                          <span className="truncate">{account.name}</span>{" "}
+                        </div>{" "}
+                      </SelectItem>
+                    )
+                  })}{" "}
+                </SelectContent>{" "}
+              </Select>{" "}
+            </div>
             <div className="space-y-2">
               <Label>Status</Label>
               <Select
@@ -1155,8 +1174,8 @@ export default function ExpensesPage() {
             <AlertDialogDescription>
               This will permanently delete{" "}
               <span className="font-medium text-foreground">
-            "{deleteTarget?.title}"
-          </span>
+                "{deleteTarget?.title}"
+              </span>
               . This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1197,4 +1216,5 @@ export default function ExpensesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  ) }
+  )
+}

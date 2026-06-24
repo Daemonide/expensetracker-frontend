@@ -34,7 +34,7 @@ export default function Layout() {
             <SidebarTrigger className="-ml-1" />
             <div className="mx-2 h-4 w-px bg-border" />
             <Breadcrumb>
-              <BreadcrumbList>
+              <BreadcrumbList className="flex-wrap">
                 <BreadcrumbItem className="hidden md:block">
                   <Link to="/dashboard">Expense Tracker</Link>
                 </BreadcrumbItem>

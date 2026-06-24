@@ -78,7 +78,6 @@ const SORT_LABELS: Record<SortField, string> = {
   name: "Category Name",
 }
 
-
 function CategoryCard({
   category,
   onEdit,
@@ -304,10 +303,10 @@ export default function CategoriesPage() {
         <h2 className="text-3xl font-bold tracking-tight">Categories</h2>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Input
           placeholder="Search categories... (press Enter)"
-          className="max-w-sm bg-background"
+          className="w-full bg-background sm:max-w-sm"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => {
@@ -316,15 +315,17 @@ export default function CategoriesPage() {
             }
           }}
         />
-        <Button onClick={openAddSheet}>
+        <Button onClick={openAddSheet} className="w-full sm:w-auto">
           <IconPlus className="mr-2 size-4" />
           Add Category
         </Button>
 
-        <div className="ml-auto flex items-center gap-2">
-          <Label className="text-sm text-muted-foreground">Sort by</Label>
+        <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+          <Label className="text-sm whitespace-nowrap text-muted-foreground">
+            Sort by
+          </Label>
           <Select value={sorting.id} onValueChange={handleSortFieldChange}>
-            <SelectTrigger className="h-9 w-40 bg-background">
+            <SelectTrigger className="h-9 flex-1 bg-background sm:w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -338,7 +339,7 @@ export default function CategoriesPage() {
           <Button
             variant="outline"
             size="icon"
-            className="bg-background"
+            className="shrink-0 bg-background"
             onClick={toggleSortDirection}
             title={sorting.desc ? "Descending" : "Ascending"}
           >

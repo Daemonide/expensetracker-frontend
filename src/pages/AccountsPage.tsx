@@ -84,7 +84,6 @@ function AccountCard({
 
   return (
     <Card className="relative overflow-hidden transition-all hover:border-muted-foreground/30 hover:shadow-md">
-      {/* Vertical band of color identifying the account type */}
       <div className={`absolute inset-y-0 left-0 w-1.5 ${config.bandClass}`} />
 
       <CardContent className="flex items-center gap-4 p-4 pl-6">
@@ -267,30 +266,32 @@ export default function AccountsPage() {
         <h2 className="text-3xl font-bold tracking-tight">Accounts</h2>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Input
           placeholder="Search accounts... (press Enter)"
-          className="max-w-sm bg-background"
+          className="w-full bg-background sm:max-w-sm"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") setSearch(searchInput)
           }}
         />
-        <Button onClick={openAddSheet}>
+        <Button onClick={openAddSheet} className="w-full sm:w-auto">
           <IconPlus className="mr-2 size-4" />
           Add Account
         </Button>
 
-        <div className="ml-auto flex items-center gap-2">
-          <Label className="text-sm text-muted-foreground">Sort by</Label>
+        <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+          <Label className="text-sm whitespace-nowrap text-muted-foreground">
+            Sort by
+          </Label>
           <Select
             value={sorting.id}
             onValueChange={(value) =>
               setSorting((prev) => ({ ...prev, id: value as SortField }))
             }
           >
-            <SelectTrigger className="h-9 w-32 bg-background">
+            <SelectTrigger className="h-9 flex-1 bg-background sm:w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -301,7 +302,7 @@ export default function AccountsPage() {
           <Button
             variant="outline"
             size="icon"
-            className="bg-background"
+            className="shrink-0 bg-background"
             onClick={toggleSortDirection}
             title={sorting.desc ? "Descending" : "Ascending"}
           >

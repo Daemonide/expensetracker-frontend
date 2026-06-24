@@ -1,3 +1,5 @@
 # Expense Tracker Frontend
 
-Frontend for my [expense tracker](https://github.com/Daemonide/expensetracker-server) server
+A website for tracking your expenses.
+
+Visit [expensetracker.daemonide.dev]()
